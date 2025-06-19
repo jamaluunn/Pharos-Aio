@@ -30,7 +30,6 @@ class BrokexModule:
 
     async def _send_transaction(self, tx):
         try:
-            # Memastikan chainId selalu ada
             if 'chainId' not in tx:
                 tx['chainId'] = self.web3.eth.chain_id
 
@@ -43,7 +42,7 @@ class BrokexModule:
                 self.log(f"{Fore.GREEN}Transaksi sukses! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
                 return tx_hash
             else:
-                self.log(f"{Fore.RED}Transaksi gagal! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
+                self.log(f"{Fore.RED}Transaksi gagal (reverted)! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
                 return None
         except Exception as e:
             self.log(f"{Fore.RED}Error saat mengirim transaksi: {e}{Style.RESET_ALL}")
@@ -77,19 +76,31 @@ class BrokexModule:
         return False
 
     async def perform_claim_faucet(self):
+        """ 
+        <<<< PERBAIKAN DI SINI >>>>
+        Fungsi ini sekarang menangani error revert dengan lebih baik.
+        """
         self.log("Mencoba klaim faucet USDT Brokex...")
         contract = self.web3.eth.contract(address=self.web3.to_checksum_address(config.BROKEX_CLAIM_ROUTER_ADDRESS), abi=config.BROKEX_CLAIM_ABI)
-        tx_data = contract.functions.claim()
         try:
+            tx_data = contract.functions.claim()
             tx = tx_data.build_transaction({
                 "from": self.address,
                 "gas": tx_data.estimate_gas({"from": self.address}),
                 "gasPrice": self.web3.eth.gas_price,
                 "nonce": self.web3.eth.get_transaction_count(self.address),
             })
-            await self._send_transaction(tx)
+            tx_hash = await self._send_transaction(tx)
+            if tx_hash is None:
+                # _send_transaction sudah log error, kita tambahkan info kontekstual
+                self.log(f"{Fore.YELLOW}Info: Klaim faucet tidak berhasil. Kemungkinan besar karena sudah pernah klaim (cooldown aktif).{Style.RESET_ALL}")
         except Exception as e:
-            self.log(f"{Fore.RED}Gagal membuat transaksi claim faucet: {e}{Style.RESET_ALL}")
+            # Menangani error bahkan sebelum transaksi dikirim (misal, saat estimate_gas)
+            if 'execution reverted' in str(e).lower():
+                self.log(f"{Fore.YELLOW}Info: Klaim faucet tidak berhasil. Kemungkinan besar karena sudah pernah klaim (cooldown aktif).{Style.RESET_ALL}")
+            else:
+                self.log(f"{Fore.RED}Gagal membuat transaksi claim faucet: {e}{Style.RESET_ALL}")
+
 
     async def perform_trade(self, pair_id, action, amount):
         pair_name = next((p['name'] for p in config.BROKEX_PAIRS if p['id'] == pair_id), "Unknown")
@@ -108,14 +119,13 @@ class BrokexModule:
         calldata = "0x3c1395d2" + encoded_data.hex()
         
         try:
-            # <-- PERBAIKAN DI SINI
             tx = {
                 "to": self.web3.to_checksum_address(config.BROKEX_TRADE_ROUTER_ADDRESS),
                 "from": self.address,
                 "data": calldata,
                 "value": 0,
                 "gas": 300000,
-                "gasPrice": self.web3.eth.gas_price, # Menambahkan gasPrice yang hilang
+                "gasPrice": self.web3.eth.gas_price,
                 "nonce": self.web3.eth.get_transaction_count(self.address),
             }
             await self._send_transaction(tx)
@@ -130,7 +140,7 @@ class BrokexModule:
         await asyncio.sleep(random.uniform(delay_min, delay_max))
 
         for i in range(settings['trade_count']):
-            self.log(f"{Style.BRIGHT}--- Trade ke-{i+1}/{settings['trade_count']} ---{Style.RESET_ALL}")
+            self.log(f"{Style.BRIGHT}--- Trade ke-{i+1}/{settings['trade_count']} ---")
             pair = random.choice(config.BROKEX_PAIRS)
             action = random.choice([0, 1]) 
             
