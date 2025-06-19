@@ -30,6 +30,10 @@ class BrokexModule:
 
     async def _send_transaction(self, tx):
         try:
+            # Memastikan chainId selalu ada
+            if 'chainId' not in tx:
+                tx['chainId'] = self.web3.eth.chain_id
+
             signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
             self.log(f"Transaksi dikirim, menunggu konfirmasi... Hash: {tx_hash.hex()}")
@@ -64,8 +68,7 @@ class BrokexModule:
             "from": self.address,
             "gas": approve_tx_data.estimate_gas({"from": self.address}),
             "gasPrice": self.web3.eth.gas_price,
-            "nonce": self.web3.eth.get_transaction_count(self.address),
-            "chainId": self.web3.eth.chain_id,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
         })
         tx_hash = await self._send_transaction(tx)
         if tx_hash:
@@ -81,6 +84,7 @@ class BrokexModule:
             tx = tx_data.build_transaction({
                 "from": self.address,
                 "gas": tx_data.estimate_gas({"from": self.address}),
+                "gasPrice": self.web3.eth.gas_price,
                 "nonce": self.web3.eth.get_transaction_count(self.address),
             })
             await self._send_transaction(tx)
@@ -100,17 +104,18 @@ class BrokexModule:
         decimals = token_contract.functions.decimals().call()
         trade_amount_wei = int(amount * (10 ** decimals))
 
-        encoded_data = encode(
-            ['uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256'],
-            [pair_id, action, trade_amount_wei, 5, 0, 0]
-        )
+        encoded_data = encode(['uint256','uint256','uint256','uint256','uint256','uint256',],[pair_id,action,trade_amount_wei,5,0,0])
         calldata = "0x3c1395d2" + encoded_data.hex()
         
         try:
+            # <-- PERBAIKAN DI SINI
             tx = {
                 "to": self.web3.to_checksum_address(config.BROKEX_TRADE_ROUTER_ADDRESS),
                 "from": self.address,
-                "data": calldata, "value": 0, "gas": 300000,
+                "data": calldata,
+                "value": 0,
+                "gas": 300000,
+                "gasPrice": self.web3.eth.gas_price, # Menambahkan gasPrice yang hilang
                 "nonce": self.web3.eth.get_transaction_count(self.address),
             }
             await self._send_transaction(tx)
@@ -121,15 +126,13 @@ class BrokexModule:
         self.log(f"{Fore.MAGENTA}--- MEMULAI SIKLUS TRADING BROKEX UNTUK {self.address[:10]}... ---{Style.RESET_ALL}")
         delay_min, delay_max = settings['delay']
 
-        # 1. Klaim Faucet
         await self.perform_claim_faucet()
         await asyncio.sleep(random.uniform(delay_min, delay_max))
 
-        # 2. Lakukan Trading beberapa kali
         for i in range(settings['trade_count']):
             self.log(f"{Style.BRIGHT}--- Trade ke-{i+1}/{settings['trade_count']} ---{Style.RESET_ALL}")
             pair = random.choice(config.BROKEX_PAIRS)
-            action = random.choice([0, 1]) # 0 for SHORT, 1 for LONG
+            action = random.choice([0, 1]) 
             
             await self.perform_trade(pair['id'], action, settings['trade_amount'])
             await asyncio.sleep(random.uniform(delay_min, delay_max))
