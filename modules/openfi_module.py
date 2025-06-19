@@ -50,7 +50,7 @@ class OpenFiModule:
                 balance = self.web3.eth.get_balance(self.address)
                 return self.web3.from_wei(balance, 'ether')
             else:
-                token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(contract_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+                token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(contract_address), abi=config.PHAROS_ERC20_ABI)
                 balance = token_contract.functions.balanceOf(self.address).call()
                 decimals = token_contract.functions.decimals().call()
                 return balance / (10 ** decimals)
@@ -60,7 +60,7 @@ class OpenFiModule:
 
     async def approve_token(self, spender_address, token_address, amount):
         self.log(f"Memeriksa approval untuk token {token_address}...")
-        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(token_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(token_address), abi=config.PHAROS_ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_in_wei = int(amount * (10**decimals))
         
@@ -87,8 +87,9 @@ class OpenFiModule:
 
     async def mint_faucet(self, asset_address, ticker):
         self.log(f"Minting 100 {ticker} dari Faucet...")
-        mint_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_MINT_ROUTER_ADDRESS), abi=config.OPENFI_MINT_CONTRACT_ABI)
-        asset_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        # <-- PERBAIKAN DI SINI
+        mint_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_MINT_ROUTER_ADDRESS), abi=config.OPENFI_MINT_ABI)
+        asset_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=config.PHAROS_ERC20_ABI)
         decimals = asset_contract.functions.decimals().call()
         amount_to_wei = int(100 * (10 ** decimals))
         
@@ -103,7 +104,7 @@ class OpenFiModule:
 
     async def deposit_phrs(self, amount):
         self.log(f"Melakukan deposit {amount} PHRS...")
-        deposit_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_DEPOSIT_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
+        deposit_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_DEPOSIT_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_ABI)
         tx_data = deposit_router.functions.depositETH(self.web3.to_checksum_address("0x0000000000000000000000000000000000000000"), self.address, 0)
         
         tx = tx_data.build_transaction({
@@ -117,12 +118,12 @@ class OpenFiModule:
 
     async def supply_token(self, asset_address, amount, ticker):
         self.log(f"Melakukan supply {amount} {ticker}...")
-        if not await self.approve_token(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS, asset_address, amount):
+        if not await self.approve_token(config.OPENFI_SUPPLY_ROUTER_ADDRESS, asset_address, amount):
             self.log(f"{Fore.RED}Gagal approve untuk supply, skip.{Style.RESET_ALL}")
             return
             
-        supply_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
-        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        supply_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=config.PHAROS_ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
 
@@ -137,8 +138,8 @@ class OpenFiModule:
 
     async def borrow_token(self, asset_address, amount, ticker):
         self.log(f"Melakukan borrow {amount} {ticker}...")
-        borrow_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
-        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        borrow_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=config.PHAROS_ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
 
@@ -153,8 +154,8 @@ class OpenFiModule:
 
     async def withdraw_token(self, asset_address, amount, ticker):
         self.log(f"Melakukan withdraw {amount} {ticker}...")
-        withdraw_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
-        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        withdraw_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=config.PHAROS_ERC20_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
 
@@ -168,17 +169,14 @@ class OpenFiModule:
         await self._send_transaction(tx)
         
     async def run_full_lending_cycle(self, settings):
-        """Menjalankan siklus penuh: mint, deposit, supply, borrow, withdraw."""
         self.log(f"{Fore.MAGENTA}--- MEMULAI SIKLUS LENDING UNTUK {self.address[:10]}... ---{Style.RESET_ALL}")
         delay_min, delay_max = settings['delay']
 
-        # 1. Mint semua token dari faucet
         self.log(f"{Style.BRIGHT}Langkah 1: Mint Faucet...{Style.RESET_ALL}")
         for ticker, address in config.OPENFI_FAUCET_ASSETS.items():
             await self.mint_faucet(address, ticker)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
 
-        # 2. Deposit PHRS
         self.log(f"{Style.BRIGHT}Langkah 2: Deposit PHRS...{Style.RESET_ALL}")
         if await self.get_token_balance("PHRS") > settings['deposit_amount']:
             await self.deposit_phrs(settings['deposit_amount'])
@@ -186,7 +184,6 @@ class OpenFiModule:
         else:
             self.log(f"{Fore.YELLOW}Balance PHRS tidak cukup untuk deposit.{Style.RESET_ALL}")
 
-        # 3. Supply semua token
         self.log(f"{Style.BRIGHT}Langkah 3: Supply Tokens...{Style.RESET_ALL}")
         for ticker, address in config.OPENFI_LENDING_ASSETS.items():
             balance = await self.get_token_balance(address)
@@ -196,16 +193,13 @@ class OpenFiModule:
             else:
                 self.log(f"{Fore.YELLOW}Balance {ticker} tidak cukup untuk supply. Skip.{Style.RESET_ALL}")
 
-        # 4. Borrow semua token
         self.log(f"{Style.BRIGHT}Langkah 4: Borrow Tokens...{Style.RESET_ALL}")
         for ticker, address in config.OPENFI_LENDING_ASSETS.items():
             await self.borrow_token(address, settings['borrow_amount'], ticker)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
 
-        # 5. Withdraw sebagian token
         self.log(f"{Style.BRIGHT}Langkah 5: Withdraw Tokens...{Style.RESET_ALL}")
         for ticker, address in config.OPENFI_LENDING_ASSETS.items():
-            # Cek balance di protokol lending tidak mudah, jadi kita withdraw saja
             await self.withdraw_token(address, settings['withdraw_amount'], ticker)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
             
