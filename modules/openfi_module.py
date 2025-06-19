@@ -1,0 +1,212 @@
+# modules/openfi_module.py
+
+from web3 import Web3
+from eth_account import Account
+from colorama import *
+import asyncio, json, time, random, pytz
+from datetime import datetime
+
+import config
+
+wib = pytz.timezone('Asia/Jakarta')
+
+class OpenFiModule:
+    def __init__(self, private_key: str, proxy: str = None):
+        self.private_key = private_key
+        self.account = Account.from_key(private_key)
+        self.address = self.account.address
+        self.proxy = proxy
+        self.web3 = self._get_web3_provider()
+
+    def _get_web3_provider(self):
+        request_kwargs = {"timeout": 60}
+        if self.proxy:
+            request_kwargs["proxies"] = {"http": self.proxy, "https": self.proxy}
+        return Web3(Web3.HTTPProvider(config.RPC_URL, request_kwargs=request_kwargs))
+
+    def log(self, message):
+        print(f"{Fore.CYAN+Style.BRIGHT}[ {datetime.now(wib).strftime('%H:%M:%S')} ]{Style.RESET_ALL} {message}", flush=True)
+
+    async def _send_transaction(self, tx):
+        try:
+            signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            self.log(f"Transaksi dikirim, menunggu konfirmasi... Hash: {tx_hash.hex()}")
+            receipt = await asyncio.to_thread(self.web3.eth.wait_for_transaction_receipt, tx_hash, timeout=300)
+            
+            if receipt.status == 1:
+                self.log(f"{Fore.GREEN}Transaksi sukses! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
+                return tx_hash
+            else:
+                self.log(f"{Fore.RED}Transaksi gagal! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
+                return None
+        except Exception as e:
+            self.log(f"{Fore.RED}Error saat mengirim transaksi: {e}{Style.RESET_ALL}")
+            return None
+    
+    async def get_token_balance(self, contract_address: str):
+        try:
+            if contract_address.upper() == "PHRS":
+                balance = self.web3.eth.get_balance(self.address)
+                return self.web3.from_wei(balance, 'ether')
+            else:
+                token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(contract_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+                balance = token_contract.functions.balanceOf(self.address).call()
+                decimals = token_contract.functions.decimals().call()
+                return balance / (10 ** decimals)
+        except Exception as e:
+            self.log(f"{Fore.RED}Gagal mendapatkan balance: {e}{Style.RESET_ALL}")
+            return 0
+
+    async def approve_token(self, spender_address, token_address, amount):
+        self.log(f"Memeriksa approval untuk token {token_address}...")
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(token_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        decimals = token_contract.functions.decimals().call()
+        amount_in_wei = int(amount * (10**decimals))
+        
+        allowance = token_contract.functions.allowance(self.address, spender_address).call()
+        if allowance >= amount_in_wei:
+            self.log(f"{Fore.GREEN}Approval sudah cukup.{Style.RESET_ALL}")
+            return True
+
+        self.log(f"Melakukan approval untuk {amount} token...")
+        approve_tx_data = token_contract.functions.approve(spender_address, 2**256 - 1)
+        
+        tx = approve_tx_data.build_transaction({
+            "from": self.address,
+            "gas": approve_tx_data.estimate_gas({"from": self.address}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address),
+            "chainId": self.web3.eth.chain_id,
+        })
+        tx_hash = await self._send_transaction(tx)
+        if tx_hash:
+            await asyncio.sleep(5)
+            return True
+        return False
+
+    async def mint_faucet(self, asset_address, ticker):
+        self.log(f"Minting 100 {ticker} dari Faucet...")
+        mint_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_MINT_ROUTER_ADDRESS), abi=config.OPENFI_MINT_CONTRACT_ABI)
+        asset_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        decimals = asset_contract.functions.decimals().call()
+        amount_to_wei = int(100 * (10 ** decimals))
+        
+        tx_data = mint_router.functions.mint(self.web3.to_checksum_address(asset_address), self.address, amount_to_wei)
+        tx = tx_data.build_transaction({
+            "from": self.address,
+            "gas": tx_data.estimate_gas({"from": self.address}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+        await self._send_transaction(tx)
+
+    async def deposit_phrs(self, amount):
+        self.log(f"Melakukan deposit {amount} PHRS...")
+        deposit_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_DEPOSIT_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
+        tx_data = deposit_router.functions.depositETH(self.web3.to_checksum_address("0x0000000000000000000000000000000000000000"), self.address, 0)
+        
+        tx = tx_data.build_transaction({
+            "from": self.address,
+            "value": self.web3.to_wei(amount, 'ether'),
+            "gas": tx_data.estimate_gas({"from": self.address, "value": self.web3.to_wei(amount, 'ether')}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+        await self._send_transaction(tx)
+
+    async def supply_token(self, asset_address, amount, ticker):
+        self.log(f"Melakukan supply {amount} {ticker}...")
+        if not await self.approve_token(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS, asset_address, amount):
+            self.log(f"{Fore.RED}Gagal approve untuk supply, skip.{Style.RESET_ALL}")
+            return
+            
+        supply_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        decimals = token_contract.functions.decimals().call()
+        amount_to_wei = int(amount * (10 ** decimals))
+
+        tx_data = supply_router.functions.supply(self.web3.to_checksum_address(asset_address), amount_to_wei, self.address, 0)
+        tx = tx_data.build_transaction({
+            "from": self.address,
+            "gas": tx_data.estimate_gas({"from": self.address}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+        await self._send_transaction(tx)
+
+    async def borrow_token(self, asset_address, amount, ticker):
+        self.log(f"Melakukan borrow {amount} {ticker}...")
+        borrow_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        decimals = token_contract.functions.decimals().call()
+        amount_to_wei = int(amount * (10 ** decimals))
+
+        tx_data = borrow_router.functions.borrow(self.web3.to_checksum_address(asset_address), amount_to_wei, 2, 0, self.address)
+        tx = tx_data.build_transaction({
+            "from": self.address,
+            "gas": tx_data.estimate_gas({"from": self.address}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+        await self._send_transaction(tx)
+
+    async def withdraw_token(self, asset_address, amount, ticker):
+        self.log(f"Melakukan withdraw {amount} {ticker}...")
+        withdraw_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPEN_FI_SUPPLY_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_CONTRACT_ABI)
+        token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(asset_address), abi=json.loads(config.ERC20_CONTRACT_ABI))
+        decimals = token_contract.functions.decimals().call()
+        amount_to_wei = int(amount * (10 ** decimals))
+
+        tx_data = withdraw_router.functions.withdraw(self.web3.to_checksum_address(asset_address), amount_to_wei, self.address)
+        tx = tx_data.build_transaction({
+            "from": self.address,
+            "gas": tx_data.estimate_gas({"from": self.address}),
+            "gasPrice": self.web3.eth.gas_price,
+            "nonce": self.web3.eth.get_transaction_count(self.address)
+        })
+        await self._send_transaction(tx)
+        
+    async def run_full_lending_cycle(self, settings):
+        """Menjalankan siklus penuh: mint, deposit, supply, borrow, withdraw."""
+        self.log(f"{Fore.MAGENTA}--- MEMULAI SIKLUS LENDING UNTUK {self.address[:10]}... ---{Style.RESET_ALL}")
+        delay_min, delay_max = settings['delay']
+
+        # 1. Mint semua token dari faucet
+        self.log(f"{Style.BRIGHT}Langkah 1: Mint Faucet...{Style.RESET_ALL}")
+        for ticker, address in config.OPENFI_FAUCET_ASSETS.items():
+            await self.mint_faucet(address, ticker)
+            await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+        # 2. Deposit PHRS
+        self.log(f"{Style.BRIGHT}Langkah 2: Deposit PHRS...{Style.RESET_ALL}")
+        if await self.get_token_balance("PHRS") > settings['deposit_amount']:
+            await self.deposit_phrs(settings['deposit_amount'])
+            await asyncio.sleep(random.uniform(delay_min, delay_max))
+        else:
+            self.log(f"{Fore.YELLOW}Balance PHRS tidak cukup untuk deposit.{Style.RESET_ALL}")
+
+        # 3. Supply semua token
+        self.log(f"{Style.BRIGHT}Langkah 3: Supply Tokens...{Style.RESET_ALL}")
+        for ticker, address in config.OPENFI_LENDING_ASSETS.items():
+            balance = await self.get_token_balance(address)
+            if balance > settings['supply_amount']:
+                await self.supply_token(address, settings['supply_amount'], ticker)
+                await asyncio.sleep(random.uniform(delay_min, delay_max))
+            else:
+                self.log(f"{Fore.YELLOW}Balance {ticker} tidak cukup untuk supply. Skip.{Style.RESET_ALL}")
+
+        # 4. Borrow semua token
+        self.log(f"{Style.BRIGHT}Langkah 4: Borrow Tokens...{Style.RESET_ALL}")
+        for ticker, address in config.OPENFI_LENDING_ASSETS.items():
+            await self.borrow_token(address, settings['borrow_amount'], ticker)
+            await asyncio.sleep(random.uniform(delay_min, delay_max))
+
+        # 5. Withdraw sebagian token
+        self.log(f"{Style.BRIGHT}Langkah 5: Withdraw Tokens...{Style.RESET_ALL}")
+        for ticker, address in config.OPENFI_LENDING_ASSETS.items():
+            # Cek balance di protokol lending tidak mudah, jadi kita withdraw saja
+            await self.withdraw_token(address, settings['withdraw_amount'], ticker)
+            await asyncio.sleep(random.uniform(delay_min, delay_max))
+            
+        self.log(f"{Fore.MAGENTA}--- SIKLUS LENDING UNTUK {self.address[:10]}... SELESAI ---{Style.RESET_ALL}")
