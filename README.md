@@ -54,8 +54,8 @@ Ikuti langkah-langkah berikut untuk menjalankan bot.
 
 ### 1. Clone Repositori
 ```bash
-git clone [URL_GITHUB_ANDA]
-cd aio-pharos-bot
+git clone https://github.com/jamaluunn/Pharos-Aio.git
+cd Pharos-Aio
 ```
 
 ### 2. Instal Dependensi
