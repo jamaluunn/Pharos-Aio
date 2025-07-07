@@ -1,218 +1,197 @@
 # main.py
-
 import asyncio
 import random
 from colorama import init, Fore, Style
 from eth_account import Account
+from datetime import datetime, timedelta
 
-# Impor semua modul yang sudah kita buat
+# Impor semua modul
 from modules.pharos_module import PharosModule
 from modules.openfi_module import OpenFiModule
 from modules.gotchipus_module import GotchipusModule
 from modules.brokex_module import BrokexModule
+from modules.faroswap_module import FaroswapModule
 import config
 
-# Inisialisasi Colorama
 init(autoreset=True)
 
-# <<< FUNGSI BARU UNTUK FORMAT WAKTU >>>
+# --- FUNGSI UTILITAS ---
 def format_seconds_to_hms(seconds):
-    """Mengubah detik menjadi format Jam:Menit:Detik"""
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
+def get_user_input(prompt, input_type=float, min_val=0, max_val=None):
+    while True:
+        try:
+            value = input_type(input(Fore.YELLOW + prompt + Style.RESET_ALL))
+            if max_val is not None:
+                if min_val <= value <= max_val: return value
+                else: print(Fore.RED + f"Nilai harus di antara {min_val} dan {max_val}.")
+            elif value >= min_val:
+                return value
+            else:
+                print(Fore.RED + f"Nilai harus >= {min_val}.")
+        except ValueError:
+            print(Fore.RED + f"Input tidak valid.")
+
+# --- FUNGSI MENU ---
 def display_main_menu():
-    """Menampilkan menu utama bot."""
     print(Fore.CYAN + Style.BRIGHT + "\n==============================================")
     print(Fore.CYAN + Style.BRIGHT + "==         AIO PHAROS ECOSYSTEM BOT         ==")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
     print(Fore.WHITE + Style.BRIGHT + "           by Airdropversity ID")
-    print(Fore.BLUE + Style.BRIGHT +   "       https://t.me/AirdropversityID")
-    print(Fore.YELLOW + "        Original Script by: vonssy")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
-    
-    print(Fore.GREEN + "\nPilih Modul yang ingin dijalankan (akan diulang setiap 24 jam):")
-    print(Fore.WHITE + "1. Pharos (Swap & LP)")
-    print(Fore.WHITE + "2. OpenFi (Lending)")
-    print(Fore.WHITE + "3. Gotchipus (NFT Mint)")
-    print(Fore.WHITE + "4. Brokex (Trading)")
+    print(Fore.GREEN + "\nPilih Modul:")
+    print("1. Modul Pharos (Zenith Swap & LP)")
+    print("2. Modul OpenFi (Lending)")
+    print("3. Modul Gotchipus (NFT)")
+    print("4. Modul Brokex (Trading)")
+    print("5. Modul Faroswap (DODO Router)")
     print(Fore.CYAN + "----------------------------------------------")
-    print(Fore.YELLOW + Style.BRIGHT + "5. Jalankan SEMUA Modul (Menggunakan Pengaturan Default)")
-    print(Fore.CYAN + "----------------------------------------------")
-    print(Fore.RED + "0. Keluar (Tidak menjalankan bot)")
+    print(Fore.YELLOW + "6. Jalankan SEMUA Modul Otomatis")
+    print(Fore.WHITE + "7. Mint Testnet Badge (Satu Kali)")
+    print(Fore.RED + "0. Keluar")
     print(Style.BRIGHT + "==============================================")
 
-def get_proxy_settings():
-    """Meminta pengguna apakah ingin menggunakan proxy."""
-    print(Fore.CYAN + "\n--- Pengaturan Proxy ---")
-    while True:
-        use_proxy_input = input(Fore.YELLOW + "Apakah Anda ingin menggunakan proxy dari proxy.txt? (y/n): " + Style.RESET_ALL).lower()
-        if use_proxy_input in ['y', 'n']:
-            return use_proxy_input == 'y'
-        print(Fore.RED + "Input tidak valid, masukkan 'y' atau 'n'.")
+def display_pharos_submenu():
+    print("\n--- Menu Modul Pharos ---")
+    print("1. Jalankan Siklus Penuh")
+    print("2. Tes 'Send to Friends'")
+    print("3. Tes 'Zenith Swap' (WPHRS -> USDC)")
+    print("4. Tes 'Add Liquidity' (WPHRS/USDC)")
+    print("0. Kembali ke Menu Utama")
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 4)
 
-def get_user_input(prompt, input_type=float, min_val=0):
-    while True:
-        try:
-            value = input_type(input(Fore.YELLOW + prompt + Style.RESET_ALL))
-            if value >= min_val:
-                return value
-            else:
-                print(Fore.RED + f"Nilai harus lebih besar atau sama dengan {min_val}.")
-        except ValueError:
-            print(Fore.RED + f"Input tidak valid. Harap masukkan angka ({input_type.__name__}).")
+def display_faroswap_submenu():
+    print("\n--- Menu Modul Faroswap (DODO Router) ---")
+    print("1. Jalankan Siklus Penuh")
+    print("2. Tes Deposit (Wrap PHRS)")
+    print("3. Tes Withdraw (Unwrap WPHRS)")
+    print("4. Tes Swap On-Chain Acak")
+    print("5. Tes Add DVM Liquidity (USDC/USDT)")
+    print("0. Kembali ke Menu Utama")
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 5)
 
-# --- FUNGSI PENGATURAN (DEFAULT & INTERAKTIF) ---
-# (Tidak ada perubahan pada semua fungsi get_..._settings di bawah ini)
+# --- FUNGSI PENGATURAN DEFAULT ---
 def get_pharos_settings_default():
-    return {"delay": (10, 20), "wrap_amount": 0.01, "swap_count": 3, "swap_wphrs_usdc_amount": 0.005, "swap_usdc_wphrs_amount": 0.1, "lp_count": 3, "lp_amount_wphrs": 0.002, "lp_amount_usdc": 0.1}
+    return {"delay": (10, 20), "wrap_amount": 0.01, "zenith_swap_count": 3, "zenith_swap_amount": 0.005, "lp_count": 3, "lp_amount_wphrs": 0.002, "lp_amount_usdc": 0.1, "send_friends_count": 3, "send_friends_amount": 0.001}
 def get_openfi_settings_default():
     return {"delay": (15, 30), "deposit_amount": 0.01, "supply_amount": 1.5, "borrow_amount": 0.5, "withdraw_amount": 0.2}
 def get_gotchipus_settings_default():
     return {"delay": (10, 25)}
 def get_brokex_settings_default():
-    return {"delay": (20, 40), "trade_count": 3, "trade_amount": 1.0}
-def get_pharos_settings_interactive():
-    print(Fore.CYAN + "\n--- Pengaturan Manual Modul Pharos ---")
-    settings = {}
-    settings['wrap_amount'] = get_user_input("Jumlah PHRS untuk di-wrap (cth: 0.01): ", float)
-    settings['swap_count'] = get_user_input("Berapa kali siklus swap (WPHRS->USDC->WPHRS)?: ", int)
-    if settings['swap_count'] > 0:
-        settings['swap_wphrs_usdc_amount'] = get_user_input("  Jumlah WPHRS -> USDC (cth: 0.005): ", float)
-        settings['swap_usdc_wphrs_amount'] = get_user_input("  Jumlah USDC -> WPHRS (cth: 0.1): ", float)
-    settings['lp_count'] = get_user_input("Berapa kali ingin Add Liquidity?: ", int)
-    if settings['lp_count'] > 0:
-        settings['lp_amount_wphrs'] = get_user_input("  Jumlah WPHRS untuk Add LP (cth: 0.002): ", float)
-        settings['lp_amount_usdc'] = get_user_input("  Jumlah USDC untuk Add LP (cth: 0.1): ", float)
-    min_delay = get_user_input("Jeda waktu minimum antar transaksi (detik): ", int)
-    max_delay = get_user_input("Jeda waktu maksimum antar transaksi (detik): ", int, min_val=min_delay)
-    settings['delay'] = (min_delay, max_delay)
-    return settings
-def get_openfi_settings_interactive():
-    print(Fore.CYAN + "\n--- Pengaturan Manual Modul OpenFi ---")
-    settings = {}
-    settings['deposit_amount'] = get_user_input("Jumlah PHRS untuk di-deposit (cth: 0.01): ", float)
-    settings['supply_amount'] = get_user_input("Jumlah setiap token untuk di-supply (cth: 1.5): ", float)
-    settings['borrow_amount'] = get_user_input("Jumlah setiap token untuk di-borrow (cth: 0.5): ", float)
-    settings['withdraw_amount'] = get_user_input("Jumlah setiap token untuk di-withdraw (cth: 0.2): ", float)
-    min_delay = get_user_input("Jeda waktu minimum antar transaksi (detik): ", int)
-    max_delay = get_user_input("Jeda waktu maksimum antar transaksi (detik): ", int, min_val=min_delay)
-    settings['delay'] = (min_delay, max_delay)
-    return settings
-def get_gotchipus_settings_interactive():
-    print(Fore.CYAN + "\n--- Pengaturan Manual Modul Gotchipus ---")
-    min_delay = get_user_input("Jeda waktu antara Mint dan Claim (detik): ", int)
-    max_delay = get_user_input("Jeda waktu maksimum (detik): ", int, min_val=min_delay)
-    return {"delay": (min_delay, max_delay)}
-def get_brokex_settings_interactive():
-    print(Fore.CYAN + "\n--- Pengaturan Manual Modul Brokex ---")
-    settings = {}
-    settings['trade_count'] = get_user_input("Berapa kali ingin melakukan trade per akun?: ", int)
-    if settings['trade_count'] > 0:
-        settings['trade_amount'] = get_user_input("  Jumlah USDT per trade (cth: 1.0): ", float)
-    min_delay = get_user_input("Jeda waktu minimum antar trade (detik): ", int)
-    max_delay = get_user_input("Jeda waktu maksimum antar trade (detik): ", int, min_val=min_delay)
-    settings['delay'] = (min_delay, max_delay)
-    return settings
+    return {"delay": (20, 40), "trade_count": 3, "trade_amount": 2.0}
+def get_faroswap_settings_default():
+    return {"delay": (15, 30), "deposit_amount": 0.01, "swap_count": 3, "swap_amount": 0.001, "lp_count": 3, "lp_amount": 0.1}
 
-async def run_module(module_class, settings, accounts, proxies, module_name):
-    # ... (Fungsi ini tidak berubah)
-    print(Fore.GREEN + Style.BRIGHT + f"\n[ MEMULAI MODUL: {module_name} ]")
+# --- FUNGSI RUNNER ---
+async def run_feature_for_all_accounts(module_class, feature_func_name, accounts, proxies, *args):
+    print(Fore.GREEN + Style.BRIGHT + f"\n[ MENJALANKAN FITUR: {feature_func_name} ]")
     for i, private_key in enumerate(accounts):
         proxy = proxies[i % len(proxies)] if proxies else None
         print(Fore.CYAN + f"\n--- Akun {i+1}/{len(accounts)}: {Account.from_key(private_key).address[:10]}... ---")
-        if proxy: print(Fore.WHITE + f"   Proxy Digunakan: {proxy}")
-        else: print(Fore.WHITE + f"   Proxy Digunakan: Tidak ada")
         try:
             bot = module_class(private_key=private_key, proxy=proxy)
-            if module_name == "PHAROS": await bot.run_full_interaction_task(settings)
-            elif module_name == "OPENFI": await bot.run_full_lending_cycle(settings)
-            elif module_name == "GOTCHIPUS": await bot.run_minting_cycle(settings)
-            elif module_name == "BROKEX": await bot.run_trading_cycle(settings)
+            feature_func = getattr(bot, feature_func_name)
+            await feature_func(*args)
+            await asyncio.sleep(random.randint(5,10))
+        except Exception as e:
+            print(Fore.RED + f"Error pada fitur {feature_func_name}: {e}")
+
+async def run_full_cycle_for_all_accounts(module_class, settings_func, accounts, proxies, module_name):
+    print(Fore.GREEN + Style.BRIGHT + f"\n[ MEMULAI SIKLUS PENUH: {module_name} ]")
+    settings = settings_func()
+    runner_func_name = {"PHAROS": "run_full_interaction_task", "OPENFI": "run_full_lending_cycle", "GOTCHIPUS": "run_minting_cycle", "BROKEX": "run_trading_cycle", "FAROSWAP": "run_full_cycle"}[module_name]
+    for i, private_key in enumerate(accounts):
+        proxy = proxies[i % len(proxies)] if proxies else None
+        print(Fore.CYAN + f"\n--- Akun {i+1}/{len(accounts)}: {Account.from_key(private_key).address[:10]}... ---")
+        try:
+            bot = module_class(private_key=private_key, proxy=proxy)
+            runner_func = getattr(bot, runner_func_name)
+            await runner_func(settings)
             delay = random.randint(45, 90); print(Fore.BLUE + f"Jeda antar akun {delay} detik...")
             await asyncio.sleep(delay)
-        except Exception as e:
-            print(Fore.RED + f"Error di Modul {module_name} untuk akun {Account.from_key(private_key).address[:10]}: {e}")
-            continue
+        except Exception as e: print(Fore.RED + f"Error di Modul {module_name} untuk akun {Account.from_key(private_key).address[:10]}: {e}")
 
-async def run_all_modules(accounts, proxies):
-    # ... (Fungsi ini tidak berubah)
-    print(Fore.YELLOW + Style.BRIGHT + "\n[ MODE: JALANKAN SEMUA MODUL DENGAN PENGATURAN DEFAULT ]")
-    modules_to_run = [(PharosModule, get_pharos_settings_default(), "PHAROS"),(OpenFiModule, get_openfi_settings_default(), "OPENFI"),(GotchipusModule, get_gotchipus_settings_default(), "GOTCHIPUS"),(BrokexModule, get_brokex_settings_default(), "BROKEX")]
-    for i, (module_class, settings, module_name) in enumerate(modules_to_run):
-        await run_module(module_class, settings, accounts, proxies, module_name)
-        if i < len(modules_to_run) - 1:
-            print(Fore.MAGENTA + Style.BRIGHT + f"\n\n=== MODUL {module_name} SELESAI, PINDAH KE MODUL BERIKUTNYA DALAM 15 DETIK ===\n\n")
-            await asyncio.sleep(15)
+async def run_all_modules_auto(accounts, proxies):
+    print(Fore.YELLOW + Style.BRIGHT + "\n[ MODE: JALANKAN SEMUA MODUL OTOMATIS ]")
+    modules_to_run = [(PharosModule, get_pharos_settings_default, "PHAROS"), (OpenFiModule, get_openfi_settings_default, "OPENFI"), (GotchipusModule, get_gotchipus_settings_default, "GOTCHIPUS"), (BrokexModule, get_brokex_settings_default, "BROKEX"), (FaroswapModule, get_faroswap_settings_default, "FAROSWAP")]
+    random.shuffle(modules_to_run)
+    for i, (module_class, settings_func, module_name) in enumerate(modules_to_run):
+        await run_full_cycle_for_all_accounts(module_class, settings_func, accounts, proxies, module_name)
+        if i < len(modules_to_run) - 1: print(Fore.MAGENTA + Style.BRIGHT + f"\n\n=== MODUL {module_name} SELESAI, PINDAH KE MODUL BERIKUTNYA ===\n\n"); await asyncio.sleep(15)
 
-# <<< PERUBAHAN UTAMA DIMULAI DI SINI >>>
+# --- MAIN LOOP ---
 async def main():
     try:
         with open('accounts.txt', 'r') as f: accounts = [line.strip() for line in f if line.strip()]
         if not accounts: print(Fore.RED + "File accounts.txt kosong."); return
-        
-        # --- DAPATKAN PILIHAN PENGGUNA SEKALI SAJA DI AWAL ---
-        use_proxies = get_proxy_settings()
+        use_proxy_input = input(Fore.YELLOW + "Gunakan proxy dari proxy.txt? (y/n): " + Style.RESET_ALL).lower()
         proxies = []
-        if use_proxies:
-            try:
-                with open('proxy.txt', 'r') as f: proxies = [line.strip() for line in f if line.strip()]
-                if not proxies: print(Fore.RED + "proxy.txt kosong."); return
-                print(Fore.GREEN + f"Berhasil memuat {len(proxies)} proxy.")
-            except FileNotFoundError: print(Fore.RED + "file proxy.txt tidak ditemukan."); return
+        if use_proxy_input == 'y':
+            with open('proxy.txt', 'r') as f: proxies = [line.strip() for line in f if line.strip()]
+            if not proxies: print(Fore.RED + "proxy.txt kosong."); return
+            print(Fore.GREEN + f"Berhasil memuat {len(proxies)} proxy.")
+        else: print(Fore.GREEN + "Bot akan berjalan tanpa proxy.")
+
+        print("\n" + Fore.CYAN + Style.BRIGHT + "Pilih Mode Eksekusi:")
+        print("1. Mode Manual (Pilih dari menu)")
+        print("2. Mode Otomatis (Loop 20-24 jam non-stop)")
+        execution_mode = get_user_input("Pilihan Anda [1/2]: ", int, 1, 2)
+
+        if execution_mode == 2:
+            print(Fore.GREEN + Style.BRIGHT + "\nMode Otomatis Aktif. Siklus pertama akan segera dimulai...")
+            while True:
+                await run_all_modules_auto(accounts, proxies)
+                wait_hours = random.uniform(20, 24)
+                wait_seconds = wait_hours * 3600
+                next_run_time = datetime.now() + timedelta(seconds=wait_seconds)
+                print(Fore.GREEN + Style.BRIGHT + "\n========================================================")
+                print(Fore.GREEN + Style.BRIGHT + f"=== SEMUA SIKLUS SELESAI. BOT AKAN TIDUR. ===")
+                print(Fore.GREEN + Style.BRIGHT + f"=== Siklus berikutnya dimulai dalam: {format_seconds_to_hms(wait_seconds)} ===")
+                print(Fore.GREEN + Style.BRIGHT + f"=== Perkiraan waktu: {next_run_time.strftime('%Y-%m-%d %H:%M:%S')} ===")
+                print(Fore.GREEN + Style.BRIGHT + "========================================================")
+                await asyncio.sleep(wait_seconds)
         else:
-            print(Fore.GREEN + "Bot akan berjalan tanpa proxy.")
+            while True:
+                display_main_menu()
+                main_choice = get_user_input("Pilih Modul: ", int, 0, 7)
 
-        display_main_menu()
-        
-        initial_choice = None
-        while initial_choice is None:
-            try:
-                choice_input = input(Fore.BLUE + "Masukkan pilihan Anda: " + Style.RESET_ALL)
-                if not choice_input: continue
-                initial_choice = int(choice_input)
-                if initial_choice not in [0, 1, 2, 3, 4, 5]:
-                    print(Fore.RED + "Pilihan tidak valid. Harap masukkan angka antara 0-5."); initial_choice = None 
-            except ValueError:
-                print(Fore.RED + "Input tidak valid. Harap masukkan sebuah angka."); initial_choice = None
+                if main_choice == 1:
+                    while True:
+                        sub_choice = display_pharos_submenu()
+                        if sub_choice == 1: await run_full_cycle_for_all_accounts(PharosModule, get_pharos_settings_default, accounts, proxies, "PHAROS")
+                        elif sub_choice == 2: amount = get_user_input("Jumlah PHRS per transfer: ", float); await run_feature_for_all_accounts(PharosModule, "run_send_to_friends_task", accounts, proxies, amount)
+                        elif sub_choice == 3: amount = get_user_input("Jumlah WPHRS untuk swap: ", float); await run_feature_for_all_accounts(PharosModule, "perform_zenith_swap", accounts, proxies, config.PHAROS_WPHRS_CONTRACT_ADDRESS, config.PHAROS_USDC_CONTRACT_ADDRESS, amount)
+                        elif sub_choice == 4: amount_wphrs = get_user_input("Jumlah WPHRS untuk LP: ", float); amount_usdc = get_user_input("Jumlah USDC untuk LP: ", float); await run_feature_for_all_accounts(PharosModule, "add_liquidity", accounts, proxies, config.PHAROS_WPHRS_CONTRACT_ADDRESS, config.PHAROS_USDC_CONTRACT_ADDRESS, amount_wphrs, amount_usdc)
+                        elif sub_choice == 0: break
+                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Pharos...")
+                elif main_choice == 5:
+                     while True:
+                        sub_choice = display_faroswap_submenu()
+                        if sub_choice == 1: await run_full_cycle_for_all_accounts(FaroswapModule, get_faroswap_settings_default, accounts, proxies, "FAROSWAP")
+                        elif sub_choice == 2: amount = get_user_input("Jumlah PHRS untuk deposit (wrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "deposit_wphrs", accounts, proxies, amount)
+                        elif sub_choice == 3: amount = get_user_input("Jumlah WPHRS untuk withdraw (unwrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "withdraw_wphrs", accounts, proxies, amount)
+                        elif sub_choice == 4:
+                            amount = get_user_input("Jumlah token per swap: ", float); tokens = {"WPHRS": config.FAROSWAP_WPHRS_ADDRESS, "USDC": config.FAROSWAP_USDC_ADDRESS, "USDT": config.FAROSWAP_USDT_ADDRESS}; from_t, to_t = random.sample(list(tokens.keys()), 2); print(f"Swap acak dipilih: {from_t} -> {to_t}"); await run_feature_for_all_accounts(FaroswapModule, "perform_onchain_swap", accounts, proxies, tokens[from_t], tokens[to_t], amount)
+                        elif sub_choice == 5:
+                             amount = get_user_input("Jumlah token per sisi LP (USDC/USDT): ", float); base, quote = random.sample([config.FAROSWAP_USDC_ADDRESS, config.FAROSWAP_USDT_ADDRESS], 2); print(f"Pair LP acak dipilih: {base[-6:]}... / {quote[-6:]}..."); await run_feature_for_all_accounts(FaroswapModule, "add_dvm_liquidity", accounts, proxies, base, quote, amount)
+                        elif sub_choice == 0: break
+                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Faroswap...")
+                elif main_choice in [2,3,4]:
+                     print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...");
+                     if main_choice == 2: await run_full_cycle_for_all_accounts(OpenFiModule, get_openfi_settings_default, accounts, proxies, "OPENFI")
+                     elif main_choice == 3: await run_full_cycle_for_all_accounts(GotchipusModule, get_gotchipus_settings_default, accounts, proxies, "GOTCHIPUS")
+                     elif main_choice == 4: await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
+                elif main_choice == 6: await run_all_modules_auto(accounts, proxies); print(Fore.GREEN + Style.BRIGHT + "\nSemua siklus selesai.")
+                elif main_choice == 7: await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies); print(Fore.GREEN + "\nTugas Mint Badge selesai.")
+                elif main_choice == 0: print(Fore.YELLOW + "Terima kasih!"); break
+                else: print(Fore.RED + "Pilihan tidak valid.")
 
-        if initial_choice == 0:
-            print(Fore.YELLOW + "Bot dihentikan."); return
-
-        # Dapatkan pengaturan sekali saja jika mode manual
-        initial_settings = {}
-        if initial_choice == 1: initial_settings = get_pharos_settings_interactive()
-        elif initial_choice == 2: initial_settings = get_openfi_settings_interactive()
-        elif initial_choice == 3: initial_settings = get_gotchipus_settings_interactive()
-        elif initial_choice == 4: initial_settings = get_brokex_settings_interactive()
-
-        # --- LOOP UTAMA YANG BERJALAN SELAMANYA ---
-        cycle_count = 1
-        while True:
-            print(Fore.MAGENTA + Style.BRIGHT + f"\n\n==================== MEMULAI SIKLUS KE-{cycle_count} ====================")
-            
-            if initial_choice == 1: await run_module(PharosModule, initial_settings, accounts, proxies, "PHAROS")
-            elif initial_choice == 2: await run_module(OpenFiModule, initial_settings, accounts, proxies, "OPENFI")
-            elif initial_choice == 3: await run_module(GotchipusModule, initial_settings, accounts, proxies, "GOTCHIPUS")
-            elif initial_choice == 4: await run_module(BrokexModule, initial_settings, accounts, proxies, "BROKEX")
-            elif initial_choice == 5: await run_all_modules(accounts, proxies)
-            
-            print("\n" + Fore.GREEN + Style.BRIGHT + f"Siklus ke-{cycle_count} telah selesai.")
-            cycle_count += 1
-            
-            # --- LOGIKA TUNGGU 24 JAM DENGAN COUNTDOWN ---
-            total_seconds = 24 * 60 * 60
-            for remaining_seconds in range(total_seconds, 0, -1):
-                formatted_time = format_seconds_to_hms(remaining_seconds)
-                print(Fore.CYAN + f"Bot akan menjalankan siklus berikutnya dalam: {formatted_time}" + Style.RESET_ALL, end="\r")
-                await asyncio.sleep(1)
-
-    except FileNotFoundError: print(Fore.RED + "Pastikan file 'accounts.txt' ada.")
+    except FileNotFoundError as e: print(Fore.RED + f"File tidak ditemukan: {e}")
     except Exception as e: print(Fore.RED + f"Terjadi kesalahan fatal: {e}")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print(Fore.YELLOW + "\nBot dihentikan oleh pengguna (Ctrl+C).")
+    try: asyncio.run(main())
+    except KeyboardInterrupt: print(Fore.YELLOW + "\nBot dihentikan oleh pengguna.")
