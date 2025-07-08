@@ -1,4 +1,4 @@
-# main.py
+# main.py (Updated with randomized default settings)
 import asyncio
 import random
 from colorama import init, Fore, Style
@@ -41,6 +41,7 @@ def display_main_menu():
     print(Fore.CYAN + Style.BRIGHT + "==         AIO PHAROS ECOSYSTEM BOT         ==")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
     print(Fore.WHITE + Style.BRIGHT + "           by Airdropversity ID")
+    print(Fore.BLUE + Style.BRIGHT +   "        https://t.me/AirdropversityID")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
     print(Fore.GREEN + "\nPilih Modul:")
     print("1. Modul Pharos (Zenith Swap & LP)")
@@ -74,18 +75,51 @@ def display_faroswap_submenu():
     return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 5)
 
 # --- FUNGSI PENGATURAN DEFAULT ---
+# <<< UPDATE: Mengubah nilai menjadi rentang (min, max) >>>
 def get_pharos_settings_default():
-    return {"delay": (10, 20), "wrap_amount": 0.01, "zenith_swap_count": 3, "zenith_swap_amount": 0.005, "lp_count": 3, "lp_amount_wphrs": 0.002, "lp_amount_usdc": 0.1, "send_friends_count": 3, "send_friends_amount": 0.001}
+    return {
+        "delay": (10, 30), 
+        "wrap_amount": (0.01, 0.02), 
+        "zenith_swap_count": (3, 7), 
+        "zenith_swap_amount": (0.005, 0.01), 
+        "lp_count": (3, 7), 
+        "lp_amount_wphrs": (0.01, 0.02), 
+        "lp_amount_usdc": (0.1, 0.2), 
+        "send_friends_count": (1, 3), 
+        "send_friends_amount": (0.001, 0.002)
+    }
+
 def get_openfi_settings_default():
-    return {"delay": (15, 30), "deposit_amount": 0.01, "supply_amount": 1.5, "borrow_amount": 0.5, "withdraw_amount": 0.2}
+    return {
+        "delay": (15, 30), 
+        "deposit_amount": (0.01, 0.012), 
+        "supply_amount": (1.5, 2.0), 
+        "borrow_amount": (0.5, 0.7), 
+        "withdraw_amount": (0.2, 0.3)
+    }
+
 def get_gotchipus_settings_default():
     return {"delay": (10, 25)}
+
 def get_brokex_settings_default():
-    return {"delay": (20, 40), "trade_count": 3, "trade_amount": 2.0}
+    return {
+        "delay": (10, 30), 
+        "trade_count": (3, 5), 
+        "trade_amount": (1.0, 4.5)
+    }
+
 def get_faroswap_settings_default():
-    return {"delay": (15, 30), "deposit_amount": 0.01, "swap_count": 3, "swap_amount": 0.001, "lp_count": 3, "lp_amount": 0.1}
+    return {
+        "delay": (15, 30), 
+        "deposit_amount": (0.01, 0.015), 
+        "swap_count": (2, 7), 
+        "swap_amount": (0.01, 0.1), 
+        "lp_count": (2, 7), 
+        "lp_amount": (0.01, 0.2)
+    }
 
 # --- FUNGSI RUNNER ---
+# (Tidak ada perubahan di bagian ini)
 async def run_feature_for_all_accounts(module_class, feature_func_name, accounts, proxies, *args):
     print(Fore.GREEN + Style.BRIGHT + f"\n[ MENJALANKAN FITUR: {feature_func_name} ]")
     for i, private_key in enumerate(accounts):
@@ -125,9 +159,18 @@ async def run_all_modules_auto(accounts, proxies):
 # --- MAIN LOOP ---
 async def main():
     try:
+        # <<< BANNER DITAMPILKAN DI AWAL >>>
+        print(Fore.CYAN + Style.BRIGHT + "\n==============================================")
+        print(Fore.CYAN + Style.BRIGHT + "==                PHAROS AIO                ==")
+        print(Fore.CYAN + Style.BRIGHT + "==============================================")
+        print(Fore.WHITE + Style.BRIGHT + "            by Airdropversity ID")
+        print(Fore.BLUE + Style.BRIGHT +   "        https://t.me/AirdropversityID")
+        print(Fore.CYAN + Style.BRIGHT + "==============================================")
+
         with open('accounts.txt', 'r') as f: accounts = [line.strip() for line in f if line.strip()]
         if not accounts: print(Fore.RED + "File accounts.txt kosong."); return
-        use_proxy_input = input(Fore.YELLOW + "Gunakan proxy dari proxy.txt? (y/n): " + Style.RESET_ALL).lower()
+        
+        use_proxy_input = input(Fore.YELLOW + "\nGunakan proxy dari proxy.txt? (y/n): " + Style.RESET_ALL).lower()
         proxies = []
         if use_proxy_input == 'y':
             with open('proxy.txt', 'r') as f: proxies = [line.strip() for line in f if line.strip()]
@@ -157,7 +200,6 @@ async def main():
             while True:
                 display_main_menu()
                 main_choice = get_user_input("Pilih Modul: ", int, 0, 7)
-
                 if main_choice == 1:
                     while True:
                         sub_choice = display_pharos_submenu()
@@ -188,7 +230,6 @@ async def main():
                 elif main_choice == 7: await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies); print(Fore.GREEN + "\nTugas Mint Badge selesai.")
                 elif main_choice == 0: print(Fore.YELLOW + "Terima kasih!"); break
                 else: print(Fore.RED + "Pilihan tidak valid.")
-
     except FileNotFoundError as e: print(Fore.RED + f"File tidak ditemukan: {e}")
     except Exception as e: print(Fore.RED + f"Terjadi kesalahan fatal: {e}")
 
