@@ -128,6 +128,7 @@ Untuk menjalankan fitur **Add DVM Liquidity** pada modul Faroswap, Anda **WAJIB*
 Setelah semua pengaturan selesai, jalankan bot dengan perintah:
 ```bash
 python main.py
+```
 
 ### Mode Operasi
 Bot akan memandu Anda untuk memilih mode operasi:
@@ -153,6 +154,7 @@ def get_faroswap_settings_default():
         "lp_count": (1, 2),      
         "lp_amount": (0.1, 0.15)
     }
+```
 
 ## ⚠️ Peringatan (Disclaimer)
 -   **GUNAKAN DENGAN RISIKO ANDA SENDIRI.** Bot ini berinteraksi langsung dengan smart contract menggunakan private key Anda.
