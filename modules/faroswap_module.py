@@ -1,9 +1,13 @@
 # modules/faroswap_module.py (FIXED)
 from web3 import Web3
 from eth_account import Account
+from aiohttp import ClientSession, ClientTimeout
+from aiohttp_socks import ProxyConnector
+from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, json, time, random, pytz, os
+import asyncio, json, time, os, pytz
+import random  # <<< FIX: Menambahkan impor yang hilang
 import config
 
 wib = pytz.timezone('Asia/Jakarta')
@@ -15,14 +19,15 @@ class FaroswapModule:
         self.address = self.account.address
         self.proxy = proxy
         self.web3 = self._get_web3_provider()
-        # <<< FIX: Baris yang memanggil _get_default_headers dihapus dari sini >>>
+        self.headers = self._get_default_headers()
         self.pools_data = self._load_pools()
+
+    def _get_default_headers(self):
+        return {"Accept": "application/json, text/plain, */*","Origin": "https://faroswap.xyz","Referer": "https://faroswap.xyz/","User-Agent": FakeUserAgent().random}
 
     def _get_web3_provider(self):
         rpc_url = random.choice(config.FAROSWAP_RPC_URLS)
-        request_kwargs = {"timeout": 60}
-        if self.proxy: request_kwargs["proxies"] = {"http": self.proxy, "https": self.proxy}
-        return Web3(Web3.HTTPProvider(rpc_url, request_kwargs=request_kwargs))
+        return Web3(Web3.HTTPProvider(rpc_url))
 
     def log(self, message):
         print(f"{Fore.CYAN+Style.BRIGHT}[ {datetime.now(wib).strftime('%H:%M:%S')} ]{Style.RESET_ALL} {message}", flush=True)
@@ -39,8 +44,7 @@ class FaroswapModule:
                     return data[0] 
             return None
         except Exception as e:
-            self.log(f"{Fore.RED}Error saat memuat {filename}: {e}{Style.RESET_ALL}")
-            return None
+            self.log(f"{Fore.RED}Error saat memuat {filename}: {e}{Style.RESET_ALL}"); return None
 
     async def _send_transaction(self, tx):
         try:
@@ -54,7 +58,7 @@ class FaroswapModule:
                     tx['gas'] = self.web3.eth.estimate_gas(tx)
                 except Exception as e:
                     self.log(f"{Fore.YELLOW}Gagal estimasi gas, menggunakan nilai default. Error: {e}{Style.RESET_ALL}")
-                    tx['gas'] = 400000
+                    tx['gas'] = 500000
             
             signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
@@ -114,12 +118,12 @@ class FaroswapModule:
         })
         await self._send_transaction(tx)
 
-    async def perform_onchain_swap(self, from_token_addr, to_token_addr, amount):
-        self.log(f"Memulai On-Chain Swap dari {from_token_addr[-6:]} ke {to_token_addr[-6:]}...")
+    async def perform_swap(self, from_token_addr, to_token_addr, amount):
         is_native = (from_token_addr == config.FAROSWAP_PHRS_ADDRESS)
+        self.log(f"Swap: {amount} {'PHRS' if is_native else from_token_addr[-4:]} -> {to_token_addr[-4:]}...")
         
+        # Menggunakan on-chain swap, bukan DODO API
         router_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(config.FAROSWAP_MIXSWAP_ROUTER_ADDRESS), abi=config.FAROSWAP_MIXSWAP_ABI)
-        
         decimals = 18 if is_native else self.web3.eth.contract(address=self.web3.to_checksum_address(from_token_addr), abi=config.STANDARD_ERC20_ABI).functions.decimals().call()
         amount_in_wei = int(amount * (10**decimals))
         
@@ -131,13 +135,14 @@ class FaroswapModule:
         tx_data = router_contract.functions.exactInputSingle(params)
         tx = tx_data.build_transaction({
             "from": self.address,
-            "value": amount_in_wei if is_native else 0
+            "value": amount_in_wei if is_native else 0,
         })
         await self._send_transaction(tx)
-
+    
     async def add_dvm_liquidity(self, base_token_addr, quote_token_addr, amount):
         if not self.pools_data:
             self.log(f"{Fore.RED}Data pool dari pools.json tidak tersedia. Skip Add LP.{Style.RESET_ALL}"); return
+        
         pair_key = "USDC_USDT" if base_token_addr == config.FAROSWAP_USDC_ADDRESS else "USDT_USDC"
         dvm_address_str = self.pools_data.get(pair_key)
         if not dvm_address_str:
@@ -177,7 +182,7 @@ class FaroswapModule:
             from_t, to_t = random.sample(list(tokens.keys()), 2)
             balance = await self.get_token_balance(tokens[from_t])
             if balance > swap_amount:
-                await self.perform_onchain_swap(tokens[from_t], tokens[to_t], swap_amount)
+                await self.perform_swap(tokens[from_t], tokens[to_t], swap_amount)
             else: self.log(f"{Fore.YELLOW}Balance {from_t} tidak cukup untuk swap.{Style.RESET_ALL}")
             await asyncio.sleep(random.uniform(delay_min, delay_max))
 
