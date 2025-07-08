@@ -1,4 +1,4 @@
-# modules/faroswap_module.py (FIXED)
+# modules/faroswap_module.py
 from web3 import Web3
 from eth_account import Account
 from aiohttp import ClientSession, ClientTimeout
@@ -7,7 +7,7 @@ from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
 import asyncio, json, time, os, pytz
-import random  # <<< FIX: Menambahkan impor yang hilang
+import random
 import config
 
 wib = pytz.timezone('Asia/Jakarta')
@@ -40,8 +40,7 @@ class FaroswapModule:
                 return None
             with open(filename, 'r') as file:
                 data = json.load(file)
-                if isinstance(data, list) and len(data) > 0:
-                    return data[0] 
+                if isinstance(data, list) and len(data) > 0: return data[0]
             return None
         except Exception as e:
             self.log(f"{Fore.RED}Error saat memuat {filename}: {e}{Style.RESET_ALL}"); return None
@@ -50,15 +49,9 @@ class FaroswapModule:
         try:
             if 'nonce' not in tx: tx['nonce'] = self.web3.eth.get_transaction_count(self.address)
             if 'chainId' not in tx: tx['chainId'] = self.web3.eth.chain_id
-            if 'maxFeePerGas' not in tx: tx['maxFeePerGas'] = self.web3.to_wei('1.5', 'gwei')
+            if 'maxFeePerGas' not in tx: tx['maxFeePerGas'] = self.web3.to_wei('2', 'gwei')
             if 'maxPriorityFeePerGas' not in tx: tx['maxPriorityFeePerGas'] = self.web3.to_wei('1', 'gwei')
-            
-            if 'gas' not in tx:
-                try:
-                    tx['gas'] = self.web3.eth.estimate_gas(tx)
-                except Exception as e:
-                    self.log(f"{Fore.YELLOW}Gagal estimasi gas, menggunakan nilai default. Error: {e}{Style.RESET_ALL}")
-                    tx['gas'] = 500000
+            if 'gas' not in tx: tx['gas'] = self.web3.eth.estimate_gas(tx)
             
             signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
@@ -78,13 +71,11 @@ class FaroswapModule:
             spender = self.web3.to_checksum_address(spender_address)
             token_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(token_address), abi=config.STANDARD_ERC20_ABI)
             
-            if token_contract.functions.allowance(self.address, spender).call() >= amount_in_wei:
-                return True
+            if token_contract.functions.allowance(self.address, spender).call() >= amount_in_wei: return True
 
             self.log(f"Melakukan approval untuk {token_address[-6:]} ke {spender[-6:]}...")
             approve_data = token_contract.functions.approve(spender, 2**256 - 1)
-            
-            tx = approve_data.build_transaction({"from": self.address})
+            tx = approve_data.build_transaction({"from": self.address, "gas": 100000})
             tx_hash = await self._send_transaction(tx)
             if tx_hash: await asyncio.sleep(5); return True
             return False
@@ -101,44 +92,41 @@ class FaroswapModule:
         except Exception as e:
             self.log(f"{Fore.RED}Gagal mendapatkan balance: {e}{Style.RESET_ALL}"); return 0
 
-    async def deposit_wphrs(self, amount: float):
-        self.log(f"Deposit (wrap) {amount:.4f} PHRS menjadi WPHRS...")
-        contract = self.web3.eth.contract(address=self.web3.to_checksum_address(config.FAROSWAP_WPHRS_ADDRESS), abi=config.STANDARD_ERC20_ABI)
-        tx = contract.functions.deposit().build_transaction({
-            "from": self.address,
-            "value": self.web3.to_wei(amount, "ether")
-        })
-        await self._send_transaction(tx)
-
-    async def withdraw_wphrs(self, amount: float):
-        self.log(f"Withdraw (unwrap) {amount:.4f} WPHRS menjadi PHRS...")
-        contract = self.web3.eth.contract(address=self.web3.to_checksum_address(config.FAROSWAP_WPHRS_ADDRESS), abi=config.STANDARD_ERC20_ABI)
-        tx = contract.functions.withdraw(self.web3.to_wei(amount, "ether")).build_transaction({
-            "from": self.address
-        })
-        await self._send_transaction(tx)
+    async def get_dodo_route(self, from_token, to_token, amount_in_wei):
+        url = (f"https://api.dodoex.io/route-service/v2/widget/getdodoroute?chainId=688688&deadLine={int(time.time()) + 600}"
+               f"&apikey=a37546505892e1a952&slippage=3.225&source=dodoV2AndMixWasm&toTokenAddress={to_token}"
+               f"&fromTokenAddress={from_token}&userAddr={self.address}&estimateGas=false&fromAmount={amount_in_wei}")
+        for _ in range(3):
+            try:
+                connector = ProxyConnector.from_url(self.proxy) if self.proxy else None
+                async with ClientSession(connector=connector) as session:
+                    async with session.get(url, headers=self.headers, timeout=15) as response:
+                        data = await response.json()
+                        if data.get("status") == 200: return data.get("data")
+                self.log(f"{Fore.YELLOW}Gagal DODO route: {data.get('data', 'No response')}. Coba lagi...{Style.RESET_ALL}"); await asyncio.sleep(3)
+            except Exception as e:
+                self.log(f"{Fore.RED}Error request DODO route: {e}{Style.RESET_ALL}"); await asyncio.sleep(3)
+        return None
 
     async def perform_swap(self, from_token_addr, to_token_addr, amount):
         is_native = (from_token_addr == config.FAROSWAP_PHRS_ADDRESS)
-        self.log(f"Swap: {amount} {'PHRS' if is_native else from_token_addr[-4:]} -> {to_token_addr[-4:]}...")
-        
-        # Menggunakan on-chain swap, bukan DODO API
-        router_contract = self.web3.eth.contract(address=self.web3.to_checksum_address(config.FAROSWAP_MIXSWAP_ROUTER_ADDRESS), abi=config.FAROSWAP_MIXSWAP_ABI)
+        self.log(f"Swap: {amount} {'PHRS' if is_native else from_token_addr[-4:]} -> {to_token_addr[-4:]} via DODO API...")
         decimals = 18 if is_native else self.web3.eth.contract(address=self.web3.to_checksum_address(from_token_addr), abi=config.STANDARD_ERC20_ABI).functions.decimals().call()
         amount_in_wei = int(amount * (10**decimals))
         
-        if not is_native:
-            if not await self.approve_token(config.FAROSWAP_MIXSWAP_ROUTER_ADDRESS, from_token_addr, amount_in_wei): return
+        route = await self.get_dodo_route(from_token_addr, to_token_addr, amount_in_wei)
+        if not route: return
 
-        params = {'tokenIn': self.web3.to_checksum_address(from_token_addr),'tokenOut': self.web3.to_checksum_address(to_token_addr),'fee': 3000,'recipient': self.address,'deadline': int(time.time()) + 600,'amountIn': amount_in_wei,'amountOutMinimum': 0,'sqrtPriceLimitX96': 0}
-        
-        tx_data = router_contract.functions.exactInputSingle(params)
-        tx = tx_data.build_transaction({
-            "from": self.address,
-            "value": amount_in_wei if is_native else 0,
-        })
+        router_address = self.web3.to_checksum_address(route.get("to"))
+        if not is_native:
+            if not await self.approve_token(router_address, from_token_addr, amount_in_wei): return
+
+        tx = {
+            "to": router_address, "from": self.address, "value": int(route.get("value")), "data": route.get("data"),
+            "gas": int(route.get("gasLimit", 500000))
+        }
         await self._send_transaction(tx)
-    
+
     async def add_dvm_liquidity(self, base_token_addr, quote_token_addr, amount):
         if not self.pools_data:
             self.log(f"{Fore.RED}Data pool dari pools.json tidak tersedia. Skip Add LP.{Style.RESET_ALL}"); return
@@ -167,19 +155,20 @@ class FaroswapModule:
         self.log(f"{Fore.MAGENTA}--- MEMULAI SIKLUS PENUH FAROSWAP ---{Style.RESET_ALL}")
         delay_min, delay_max = settings['delay']
         
-        deposit_amount = random.uniform(settings['deposit_amount'][0], settings['deposit_amount'][1])
         swap_count = random.randint(settings['swap_count'][0], settings['swap_count'][1])
         lp_count = random.randint(settings['lp_count'][0], settings['lp_count'][1])
-
-        if deposit_amount > 0 and await self.get_token_balance(config.FAROSWAP_PHRS_ADDRESS) > deposit_amount:
-            await self.deposit_wphrs(deposit_amount)
-            await asyncio.sleep(random.uniform(delay_min, delay_max))
 
         for i in range(swap_count):
             self.log(f"{Style.BRIGHT}--- Swap ke-{i+1}/{swap_count} ---")
             swap_amount = random.uniform(settings['swap_amount'][0], settings['swap_amount'][1])
-            tokens = {"WPHRS": config.FAROSWAP_WPHRS_ADDRESS, "USDC": config.FAROSWAP_USDC_ADDRESS, "USDT": config.FAROSWAP_USDT_ADDRESS}
+            tokens = {"WPHRS": config.FAROSWAP_WPHRS_ADDRESS, "USDC": config.FAROSWAP_USDC_ADDRESS, "USDT": config.FAROSWAP_USDT_ADDRESS, "PHRS": config.FAROSWAP_PHRS_ADDRESS}
             from_t, to_t = random.sample(list(tokens.keys()), 2)
+            
+            # Mencegah swap WPHRS -> PHRS atau sebaliknya yang tidak logis
+            if (from_t == "WPHRS" and to_t == "PHRS") or (from_t == "PHRS" and to_t == "WPHRS"):
+                self.log(f"{Fore.YELLOW}Skip pasangan swap tidak logis: {from_t} -> {to_t}{Style.RESET_ALL}")
+                continue
+
             balance = await self.get_token_balance(tokens[from_t])
             if balance > swap_amount:
                 await self.perform_swap(tokens[from_t], tokens[to_t], swap_amount)
