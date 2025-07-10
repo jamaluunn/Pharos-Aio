@@ -9,14 +9,29 @@ Dibuat dan disusun oleh **Airdropversity ID**.
 
 ---
 
-## 🚀 Pembaruan Terbaru (Juli 2025)
+## Changelog - 10 Juli 2025
 
-Update ini membawa perubahan besar yang bertujuan untuk membuat aktivitas bot terlihat lebih natural seperti manusia dan meningkatkan stabilitas secara keseluruhan.
+Pembaruan besar yang berfokus pada perbaikan stabilitas modul, pembaruan metode on-chain, dan penambahan fitur baru.
 
-* **Mode Loop Otomatis 24 Jam**: Bot kini bisa ditinggal berjalan sendiri dan akan otomatis mengulang semua tugas setiap 20-24 jam.
-* **Randomisasi Aktivitas**: Mode otomatis (`Jalankan SEMUA Modul`) tidak lagi menggunakan parameter yang kaku. Jumlah transaksi dan nominalnya sekarang akan diambil secara acak dari rentang minimum-maksimum.
-* **Stabilitas Swap Faroswap**: Modul Faroswap tidak lagi bergantung pada API eksternal. Semua proses swap dilakukan **langsung secara on-chain**, sehingga jauh lebih andal.
-* **Logika Add Liquidity Baru**: Fitur Add Liquidity pada modul Faroswap telah diperbarui untuk menggunakan DVM (Dynamic Vending Machine) Pool, yang memerlukan konfigurasi `pools.json`.
+### 🚀 Fitur Baru
+* **Pharos Module**: Menambahkan fitur baru **"Cek Info Akun"** (opsi menu 8) untuk menampilkan total poin. Informasi ini juga sekarang muncul secara otomatis di awal setiap siklus penuh modul Pharos.
+
+### ⬆️ Pembaruan Modul
+* **Brokex Module**:
+    * **Diperbarui total** ke metode on-chain terbaru, menggunakan alamat *Trade Router* dan ABI `createPendingOrder` yang baru.
+    * Logika **klaim faucet** ditingkatkan untuk memeriksa status terlebih dahulu, mengurangi transaksi gagal.
+    * Seluruh transaksi modul kini menggunakan standar **EIP-1559** untuk stabilitas yang lebih baik.
+
+* **Faroswap Module**:
+    * **Diperbarui** untuk menggunakan alamat *router* yang lebih baru dan stabil untuk fungsi Swap dan Tambah Likuiditas.
+    * Siklus penuh modul **diperbaiki** dengan menambahkan langkah **Deposit/Wrap** yang sebelumnya hilang.
+    * Kode dirapikan dengan menghapus modul "Metode Baru" yang bersifat sementara.
+
+### 🐛 Perbaikan Bug
+* Memperbaiki `KeyError` yang terjadi saat menjalankan modul baru dari menu.
+* Memperbaiki `TypeError` pada ABI faucet Brokex.
+* Memperbaiki error *checksum address* pada modul Brokex.
+* Membersihkan dan menstandarkan kode di beberapa modul untuk konsistensi.
 
 ---
 
