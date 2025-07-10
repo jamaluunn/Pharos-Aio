@@ -90,7 +90,51 @@ class PharosModule:
                     self.log(f"{Fore.YELLOW}Login gagal: {data.get('msg')}{Style.RESET_ALL}"); return False
             except Exception as e:
                 self.log(f"{Fore.RED}Error saat login: {e}{Style.RESET_ALL}"); return False
+    
+    async def display_user_profile(self):
+        self.log("Mencoba mengambil info profil akun...")
+        # 1. Pastikan sudah login dan punya access token (diperlukan untuk endpoint ini)
+        if not self.access_token:
+            if not await self.user_login():
+                self.log(f"{Fore.RED}Gagal login, tidak bisa mengambil profil.{Style.RESET_ALL}")
+                return
 
+        # 2. Ambil data profil dari API yang stabil
+        url = f"{config.PHAROS_API_URL}/user/profile?address={self.address}"
+        headers = {**self.headers, "Authorization": f"Bearer {self.access_token}"}
+    
+        response_data = None
+        # Melakukan beberapa percobaan jika gagal
+        for attempt in range(3):
+            try:
+                connector = ProxyConnector.from_url(self.proxy) if self.proxy else None
+                async with ClientSession(connector=connector) as session:
+                    async with session.get(url=url, headers=headers, timeout=20) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            if result.get("code") == 0:
+                                response_data = result.get("data")
+                                break # Berhasil, keluar dari loop
+                        else:
+                            self.log(f"{Fore.YELLOW}Gagal mengambil profil (Attempt {attempt+1}), Status: {response.status}. Coba lagi...{Style.RESET_ALL}")
+                            await asyncio.sleep(5)
+            except Exception as e:
+                self.log(f"{Fore.RED}Error saat request profil (Attempt {attempt+1}): {e}. Coba lagi...{Style.RESET_ALL}")
+                await asyncio.sleep(5)
+    
+        # 3. Tampilkan hasil jika berhasil
+        if response_data:
+            # Mengambil data dari nested dictionary: data -> user_info -> TotalPoints
+            user_info = response_data.get('user_info', {})
+            points = user_info.get('TotalPoints', 'N/A')
+        
+            self.log(f"{Fore.GREEN+Style.BRIGHT}================ INFO AKUN ================{Style.RESET_ALL}")
+            self.log(f"{Fore.GREEN+Style.BRIGHT} Poin Total: {points}{Style.RESET_ALL}")
+            # Info Rank tidak tersedia di endpoint ini
+            self.log(f"{Fore.GREEN+Style.BRIGHT}=========================================={Style.RESET_ALL}")
+        else:
+            self.log(f"{Fore.RED}Tidak berhasil mendapatkan data profil setelah beberapa kali percobaan.{Style.RESET_ALL}")
+    
     async def check_in_and_faucet(self):
         if not self.access_token:
             if not await self.user_login(): return
@@ -222,6 +266,8 @@ class PharosModule:
     async def run_full_interaction_task(self, settings):
         self.log(f"{Fore.MAGENTA}--- MEMULAI SIKLUS PHAROS UNTUK {self.address[:10]}... ---{Style.RESET_ALL}")
         delay_min, delay_max = settings['delay']
+        await self.display_user_profile()
+        await asyncio.sleep(random.uniform(delay_min, delay_max))
         
         wrap_amount = random.uniform(settings['wrap_amount'][0], settings['wrap_amount'][1])
         send_friends_count = random.randint(settings['send_friends_count'][0], settings['send_friends_count'][1])

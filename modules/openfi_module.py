@@ -25,17 +25,25 @@ class OpenFiModule:
     def log(self, message):
         print(f"{Fore.CYAN+Style.BRIGHT}[ {datetime.now(wib).strftime('%H:%M:%S')} ]{Style.RESET_ALL} {message}", flush=True)
 
+    # GANTI FUNGSI LAMA DENGAN VERSI BARU INI
     async def _send_transaction(self, tx):
         try:
+            # Menggunakan parameter EIP-1559 yang lebih modern
+            if 'nonce' not in tx: tx['nonce'] = self.web3.eth.get_transaction_count(self.address)
             if 'chainId' not in tx: tx['chainId'] = self.web3.eth.chain_id
-            tx['nonce'] = self.web3.eth.get_transaction_count(self.address)
+            if 'maxFeePerGas' not in tx: tx['maxFeePerGas'] = self.web3.to_wei('1.5', 'gwei')
+            if 'maxPriorityFeePerGas' not in tx: tx['maxPriorityFeePerGas'] = self.web3.to_wei('1', 'gwei')
+            if 'gas' not in tx: tx['gas'] = self.web3.eth.estimate_gas(tx)
+
             signed_tx = self.web3.eth.account.sign_transaction(tx, self.private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_tx.raw_transaction)
             self.log(f"Transaksi dikirim, menunggu konfirmasi... Hash: {tx_hash.hex()}")
             receipt = await asyncio.to_thread(self.web3.eth.wait_for_transaction_receipt, tx_hash, timeout=300)
+            
             if receipt.status == 1:
                 self.log(f"{Fore.GREEN}Transaksi sukses! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
-                return tx_hash
+                # Mengembalikan format hex string agar konsisten
+                return tx_hash.hex() 
             else:
                 self.log(f"{Fore.RED}Transaksi gagal (reverted)! Explorer: {config.PHAROS_EXPLORER_URL}/tx/{tx_hash.hex()}{Style.RESET_ALL}")
                 return None
@@ -68,7 +76,7 @@ class OpenFiModule:
             return True
         self.log(f"Melakukan approval untuk {amount} token...")
         approve_tx_data = token_contract.functions.approve(spender_address, 2**256 - 1)
-        tx = approve_tx_data.build_transaction({"from": self.address,"gas": approve_tx_data.estimate_gas({"from": self.address}),"gasPrice": self.web3.eth.gas_price})
+        tx = approve_tx_data.build_transaction({"from": self.address,"gas": approve_tx_data.estimate_gas({"from": self.address})})
         tx_hash = await self._send_transaction(tx)
         if tx_hash:
             await asyncio.sleep(5)
@@ -82,7 +90,7 @@ class OpenFiModule:
         decimals = asset_contract.functions.decimals().call()
         amount_to_wei = int(100 * (10 ** decimals))
         tx_data = mint_router.functions.mint(self.web3.to_checksum_address(asset_address), self.address, amount_to_wei)
-        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address}),"gasPrice": self.web3.eth.gas_price})
+        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address})})
         await self._send_transaction(tx)
 
     async def deposit_phrs(self, amount):
@@ -90,7 +98,7 @@ class OpenFiModule:
         deposit_router = self.web3.eth.contract(address=self.web3.to_checksum_address(config.OPENFI_DEPOSIT_ROUTER_ADDRESS), abi=config.OPENFI_LENDING_ABI)
         lending_pool_address = self.web3.to_checksum_address(config.OPENFI_SUPPLY_ROUTER_ADDRESS)
         tx_data = deposit_router.functions.depositETH(lending_pool_address, self.address, 0)
-        tx = tx_data.build_transaction({"from": self.address,"value": self.web3.to_wei(amount, 'ether'),"gas": tx_data.estimate_gas({"from": self.address, "value": self.web3.to_wei(amount, 'ether')}),"gasPrice": self.web3.eth.gas_price})
+        tx = tx_data.build_transaction({"from": self.address,"value": self.web3.to_wei(amount, 'ether'),"gas": tx_data.estimate_gas({"from": self.address, "value": self.web3.to_wei(amount, 'ether')})})
         await self._send_transaction(tx)
 
     async def supply_token(self, asset_address, amount, ticker):
@@ -102,7 +110,7 @@ class OpenFiModule:
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
         tx_data = supply_router.functions.supply(self.web3.to_checksum_address(asset_address), amount_to_wei, self.address, 0)
-        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address}),"gasPrice": self.web3.eth.gas_price})
+        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address})})
         await self._send_transaction(tx)
 
     async def borrow_token(self, asset_address, amount, ticker):
@@ -112,7 +120,7 @@ class OpenFiModule:
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
         tx_data = borrow_router.functions.borrow(self.web3.to_checksum_address(asset_address), amount_to_wei, 2, 0, self.address)
-        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address}),"gasPrice": self.web3.eth.gas_price})
+        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address})})
         await self._send_transaction(tx)
 
     async def withdraw_token(self, asset_address, amount, ticker):
@@ -122,7 +130,7 @@ class OpenFiModule:
         decimals = token_contract.functions.decimals().call()
         amount_to_wei = int(amount * (10 ** decimals))
         tx_data = withdraw_router.functions.withdraw(self.web3.to_checksum_address(asset_address), amount_to_wei, self.address)
-        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address}),"gasPrice": self.web3.eth.gas_price})
+        tx = tx_data.build_transaction({"from": self.address,"gas": tx_data.estimate_gas({"from": self.address})})
         await self._send_transaction(tx)
         
     async def run_full_lending_cycle(self, settings):
