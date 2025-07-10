@@ -8,7 +8,12 @@ RPC_URL = "https://testnet.dplabs-internal.com"
 
 # <<< Daftar RPC KHUSUS untuk modul Faroswap >>>
 FAROSWAP_RPC_URLS = [
-    "https://api.zan.top/node/v1/pharos/testnet/GANTI PAKE RPC MU",
+    "https://api.zan.top/node/v1/pharos/testnet/API RPC MU",
+    "https://testnet.dplabs-internal.com"
+]
+
+RPC_URLS = [
+    "https://api.zan.top/node/v1/pharos/testnet/API RPC MU",
     "https://testnet.dplabs-internal.com"
 ]
 
@@ -51,12 +56,25 @@ OPENFI_LENDING_ABI = [{"type":"function","name":"depositETH","inputs":[{"name":"
 GOTCHIPUS_NFT_CONTRACT_ADDRESS = "0x0000000038f050528452D6Da1E7AACFA7B3Ec0a8"
 GOTCHIPUS_MINT_ABI = [{"inputs":[],"name":"freeMint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimWearable","outputs":[],"stateMutability":"nonpayable","type":"function"}]
 
-# --- BROKEX CONFIG ---
+# --- BROKEX CONFIG (Updated) ---
 BROKEX_USDT_ADDRESS = "0x78ac5e2d8a78a8b8e6d10c7b7274b03c10c91cef"
 BROKEX_CLAIM_ROUTER_ADDRESS = "0x50576285BD33261DEe1aD99BF766CD8249520a58"
-BROKEX_TRADE_ROUTER_ADDRESS = "0xf2532bE557F6de4a28a7C706139cb200B1888081"
-BROKEX_PAIRS = [{"name":"BTC_USDT","id":0},{"name":"ETH_USDT","id":1},{"name":"SOL_USDT","id":10},{"name":"XRP_USDT","id":14}]
-BROKEX_CLAIM_ABI = json.loads('''[{"type":"function","name":"claim","stateMutability":"nonpayable","inputs":[],"outputs":[]}]''')
+BROKEX_TRADE_ROUTER_ADDRESS = "0x01f61eb2e4667c6188f4c1c87c0f529155bf888c" # <-- Alamat BARU
+BROKEX_PAIRS = [
+    {"name": "BTC_USDT", "id": 0},
+    {"name": "ETH_USDT", "id": 1},
+    {"name": "SOL_USDT", "id": 10},
+    {"name": "XRP_USDT", "id": 14}
+]
+# ABI Baru untuk klaim faucet (dengan fungsi check)
+BROKEX_CLAIM_ABI = json.loads('''[
+    {"type":"function","name":"hasClaimed","stateMutability":"view","inputs":[{"internalType":"address","name":"","type":"address"}],"outputs":[{"internalType":"bool","name":"","type":"bool"}]},
+    {"type":"function","name":"claim","stateMutability":"nonpayable","inputs":[],"outputs":[]}
+]''')
+# ABI Baru untuk trading (dengan fungsi createPendingOrder)
+BROKEX_ORDER_ABI = json.loads('''[
+    {"name":"createPendingOrder","type":"function","stateMutability":"nonpayable","inputs":[{"internalType":"uint256","name":"assetIndex","type":"uint256"},{"internalType":"bool","name":"isLong","type":"bool"},{"internalType":"uint256","name":"usdSize","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"slPrice","type":"uint256"},{"internalType":"uint256","name":"tpPrice","type":"uint256"}],"outputs":[]}
+]''')
 
 # --- FAROSWAP (DODO ROUTER) CONFIG ---
 FAROSWAP_PHRS_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
@@ -71,3 +89,7 @@ FAROSWAP_LP_POOL_ADDRESS = "0x73cafc894dbfc181398264934f7be4e482fc9d40"
 # <<< FIX: Menambahkan FAROSWAP_MIXSWAP_ABI >>>
 FAROSWAP_MIXSWAP_ABI = json.loads('''[{"inputs":[{"components":[{"internalType":"address","name":"tokenIn","type":"address"},{"internalType":"address","name":"tokenOut","type":"address"},{"internalType":"uint24","name":"fee","type":"uint24"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint256","name":"amountIn","type":"uint256"},{"internalType":"uint256","name":"amountOutMinimum","type":"uint256"},{"internalType":"uint160","name":"sqrtPriceLimitX96","type":"uint160"}],"internalType":"struct ISwapRouter.ExactInputSingleParams","name":"params","type":"tuple"}],"name":"exactInputSingle","outputs":[{"internalType":"uint256","name":"amountOut","type":"uint256"}],"stateMutability":"payable","type":"function"}]''')
 FAROSWAP_DVM_POOL_ABI = json.loads('''[{"type":"function","name":"addDVMLiquidity","stateMutability":"payable","inputs":[{"internalType":"address","name":"dvmAddress","type":"address"},{"internalType":"uint256","name":"baseInAmount","type":"uint256"},{"internalType":"uint256","name":"quoteInAmount","type":"uint256"},{"internalType":"uint256","name":"baseMinAmount","type":"uint256"},{"internalType":"uint256","name":"quoteMinAmount","type":"uint256"},{"internalType":"uint8","name":"flag","type":"uint8"},{"internalType":"uint256","name":"deadLine","type":"uint256"}],"outputs":[{"internalType":"uint256","name":"shares","type":"uint256"},{"internalType":"uint256","name":"baseAdjustedInAmount","type":"uint256"},{"internalType":"uint256","name":"quoteAdjustedInAmount","type":"uint256"}]}]''')
+
+# --- FAROSWAP (METODE BARU) CONFIG ---
+FAROSWAP_MIXSWAP_ROUTER_ADDRESS = "0x3541423f25A1Ca5C98fdBCf478405d3f0aaD1164"
+FAROSWAP_POOL_ROUTER_ADDRESS = "0x73cafc894dbfc181398264934f7be4e482fc9d40"
