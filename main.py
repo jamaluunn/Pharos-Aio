@@ -1,4 +1,4 @@
-# main.py (Updated with randomized default settings)
+# main.py (Final Cleaned Version)
 import asyncio
 import random
 from colorama import init, Fore, Style
@@ -41,7 +41,7 @@ def display_main_menu():
     print(Fore.CYAN + Style.BRIGHT + "==         AIO PHAROS ECOSYSTEM BOT         ==")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
     print(Fore.WHITE + Style.BRIGHT + "           by Airdropversity ID")
-    print(Fore.BLUE + Style.BRIGHT +   "        https://t.me/AirdropversityID")
+    print(Fore.BLUE + Style.BRIGHT +   "         https://t.me/AirdropversityID")
     print(Fore.CYAN + Style.BRIGHT + "==============================================")
     print(Fore.GREEN + "\nPilih Modul:")
     print("1. Modul Pharos (Zenith Swap & LP)")
@@ -52,6 +52,7 @@ def display_main_menu():
     print(Fore.CYAN + "----------------------------------------------")
     print(Fore.YELLOW + "6. Jalankan SEMUA Modul Otomatis")
     print(Fore.WHITE + "7. Mint Testnet Badge (Satu Kali)")
+    print(Fore.MAGENTA + "8. Cek Info Akun Pharos (Poin & Rank)")
     print(Fore.RED + "0. Keluar")
     print(Style.BRIGHT + "==============================================")
 
@@ -68,58 +69,24 @@ def display_faroswap_submenu():
     print("\n--- Menu Modul Faroswap (DODO Router) ---")
     print("1. Jalankan Siklus Penuh")
     print("2. Tes Deposit (Wrap PHRS)")
-    print("3. Tes Withdraw (Unwrap WPHRS)")
-    print("4. Tes Swap On-Chain Acak")
-    print("5. Tes Add DVM Liquidity (USDC/USDT)")
+    print("3. Tes Swap Acak")
+    print("4. Tes Add DVM Liquidity (USDC/USDT)")
     print("0. Kembali ke Menu Utama")
-    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 5)
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 4)
 
 # --- FUNGSI PENGATURAN DEFAULT ---
-# <<< UPDATE: Mengubah nilai menjadi rentang (min, max) >>>
 def get_pharos_settings_default():
-    return {
-        "delay": (10, 30), 
-        "wrap_amount": (0.01, 0.02), 
-        "zenith_swap_count": (3, 7), 
-        "zenith_swap_amount": (0.005, 0.01), 
-        "lp_count": (3, 7), 
-        "lp_amount_wphrs": (0.01, 0.02), 
-        "lp_amount_usdc": (0.1, 0.2), 
-        "send_friends_count": (1, 3), 
-        "send_friends_amount": (0.001, 0.002)
-    }
-
+    return {"delay": (10, 30), "wrap_amount": (0.001, 0.01), "zenith_swap_count": (3, 7), "zenith_swap_amount": (0.005, 0.01), "lp_count": (3, 7), "lp_amount_wphrs": (0.001, 0.02), "lp_amount_usdc": (0.1, 0.2), "send_friends_count": (1, 3), "send_friends_amount": (0.001, 0.002)}
 def get_openfi_settings_default():
-    return {
-        "delay": (15, 30), 
-        "deposit_amount": (0.01, 0.012), 
-        "supply_amount": (1.5, 2.0), 
-        "borrow_amount": (0.5, 0.7), 
-        "withdraw_amount": (0.2, 0.3)
-    }
-
+    return {"delay": (15, 30), "deposit_amount": (0.01, 0.05), "supply_amount": (0.01, 0.07), "borrow_amount": (0.01, 0.05), "withdraw_amount": (0.01, 0.05)}
 def get_gotchipus_settings_default():
     return {"delay": (10, 25)}
-
 def get_brokex_settings_default():
-    return {
-        "delay": (10, 30), 
-        "trade_count": (3, 5), 
-        "trade_amount": (1.0, 4.5)
-    }
-
+    return {"delay": (10, 30), "trade_count": (3, 5), "trade_amount": (1.0, 4.5)}
 def get_faroswap_settings_default():
-    return {
-        "delay": (15, 30), 
-        "deposit_amount": (0.01, 0.015), 
-        "swap_count": (2, 7), 
-        "swap_amount": (0.01, 0.1), 
-        "lp_count": (2, 7), 
-        "lp_amount": (0.01, 0.2)
-    }
+    return {"delay": (15, 30), "deposit_amount": (0.01, 0.015), "swap_count": (2, 7), "swap_amount": (0.01, 0.1), "lp_count": (2, 7), "lp_amount": (0.01, 0.2)}
 
 # --- FUNGSI RUNNER ---
-# (Tidak ada perubahan di bagian ini)
 async def run_feature_for_all_accounts(module_class, feature_func_name, accounts, proxies, *args):
     print(Fore.GREEN + Style.BRIGHT + f"\n[ MENJALANKAN FITUR: {feature_func_name} ]")
     for i, private_key in enumerate(accounts):
@@ -159,12 +126,11 @@ async def run_all_modules_auto(accounts, proxies):
 # --- MAIN LOOP ---
 async def main():
     try:
-        # <<< BANNER DITAMPILKAN DI AWAL >>>
         print(Fore.CYAN + Style.BRIGHT + "\n==============================================")
-        print(Fore.CYAN + Style.BRIGHT + "==                PHAROS AIO                ==")
+        print(Fore.CYAN + Style.BRIGHT + "==         AIO PHAROS ECOSYSTEM BOT         ==")
         print(Fore.CYAN + Style.BRIGHT + "==============================================")
-        print(Fore.WHITE + Style.BRIGHT + "            by Airdropversity ID")
-        print(Fore.BLUE + Style.BRIGHT +   "        https://t.me/AirdropversityID")
+        print(Fore.WHITE + Style.BRIGHT + "           by Airdropversity ID")
+        print(Fore.BLUE + Style.BRIGHT +   "         https://t.me/AirdropversityID")
         print(Fore.CYAN + Style.BRIGHT + "==============================================")
 
         with open('accounts.txt', 'r') as f: accounts = [line.strip() for line in f if line.strip()]
@@ -199,7 +165,7 @@ async def main():
         else:
             while True:
                 display_main_menu()
-                main_choice = get_user_input("Pilih Modul: ", int, 0, 7)
+                main_choice = get_user_input("Pilih Modul: ", int, 0, 8)
                 if main_choice == 1:
                     while True:
                         sub_choice = display_pharos_submenu()
@@ -213,12 +179,9 @@ async def main():
                      while True:
                         sub_choice = display_faroswap_submenu()
                         if sub_choice == 1: await run_full_cycle_for_all_accounts(FaroswapModule, get_faroswap_settings_default, accounts, proxies, "FAROSWAP")
-                        elif sub_choice == 2: amount = get_user_input("Jumlah PHRS untuk deposit (wrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "deposit_wphrs", accounts, proxies, amount)
-                        elif sub_choice == 3: amount = get_user_input("Jumlah WPHRS untuk withdraw (unwrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "withdraw_wphrs", accounts, proxies, amount)
-                        elif sub_choice == 4:
-                            amount = get_user_input("Jumlah token per swap: ", float); tokens = {"WPHRS": config.FAROSWAP_WPHRS_ADDRESS, "USDC": config.FAROSWAP_USDC_ADDRESS, "USDT": config.FAROSWAP_USDT_ADDRESS}; from_t, to_t = random.sample(list(tokens.keys()), 2); print(f"Swap acak dipilih: {from_t} -> {to_t}"); await run_feature_for_all_accounts(FaroswapModule, "perform_onchain_swap", accounts, proxies, tokens[from_t], tokens[to_t], amount)
-                        elif sub_choice == 5:
-                             amount = get_user_input("Jumlah token per sisi LP (USDC/USDT): ", float); base, quote = random.sample([config.FAROSWAP_USDC_ADDRESS, config.FAROSWAP_USDT_ADDRESS], 2); print(f"Pair LP acak dipilih: {base[-6:]}... / {quote[-6:]}..."); await run_feature_for_all_accounts(FaroswapModule, "add_dvm_liquidity", accounts, proxies, base, quote, amount)
+                        elif sub_choice == 2: amount = get_user_input("Jumlah PHRS untuk deposit (wrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "deposit_phrs", accounts, proxies, amount)
+                        elif sub_choice == 3: amount = get_user_input("Jumlah token per swap: ", float); tokens = {"WPHRS": config.FAROSWAP_WPHRS_ADDRESS, "USDC": config.FAROSWAP_USDC_ADDRESS, "USDT": config.FAROSWAP_USDT_ADDRESS}; from_t, to_t = random.sample(list(tokens.keys()), 2); print(f"Swap acak dipilih: {from_t} -> {to_t}"); await run_feature_for_all_accounts(FaroswapModule, "perform_swap", accounts, proxies, tokens[from_t], tokens[to_t], amount)
+                        elif sub_choice == 4: amount = get_user_input("Jumlah token per sisi LP (USDC/USDT): ", float); base, quote = random.sample([config.FAROSWAP_USDC_ADDRESS, config.FAROSWAP_USDT_ADDRESS], 2); print(f"Pair LP acak dipilih: {base[-6:]}... / {quote[-6:]}..."); await run_feature_for_all_accounts(FaroswapModule, "add_dvm_liquidity", accounts, proxies, base, quote, amount)
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Faroswap...")
                 elif main_choice in [2,3,4]:
@@ -228,6 +191,7 @@ async def main():
                      elif main_choice == 4: await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
                 elif main_choice == 6: await run_all_modules_auto(accounts, proxies); print(Fore.GREEN + Style.BRIGHT + "\nSemua siklus selesai.")
                 elif main_choice == 7: await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies); print(Fore.GREEN + "\nTugas Mint Badge selesai.")
+                elif main_choice == 8: await run_feature_for_all_accounts(PharosModule, "display_user_profile", accounts, proxies); print(Fore.GREEN + "\nPengecekan Info Akun selesai.")
                 elif main_choice == 0: print(Fore.YELLOW + "Terima kasih!"); break
                 else: print(Fore.RED + "Pilihan tidak valid.")
     except FileNotFoundError as e: print(Fore.RED + f"File tidak ditemukan: {e}")
