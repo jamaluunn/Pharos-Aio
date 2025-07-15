@@ -236,20 +236,30 @@ class PharosModule:
         await self._send_transaction(tx)
 
     async def perform_zenith_swap(self, from_token, to_token, amount):
-        self.log(f"Zenith Swap: {amount:.4f} WPHRS -> USDC...")
+        self.log(f"Zenith Swap: {amount:.4f} {config.TOKEN_MAP.get(from_token, from_token[-6:])} -> {config.TOKEN_MAP.get(to_token, to_token[-6:])}...")
         from_token_addr = self.web3.to_checksum_address(from_token)
         to_token_addr = self.web3.to_checksum_address(to_token)
         if await self.get_token_balance(from_token_addr) < amount:
             self.log(f"{Fore.YELLOW}Balance tidak cukup untuk swap. Skip.{Style.RESET_ALL}"); return
-        
+
         router_addr = self.web3.to_checksum_address(config.PHAROS_SWAP_ROUTER_ADDRESS)
         if not await self.approve_token(router_addr, from_token_addr, amount):
             self.log(f"{Fore.RED}Gagal approve, swap dibatalkan.{Style.RESET_ALL}"); return
-        
+
         router_contract = self.web3.eth.contract(address=router_addr, abi=config.PHAROS_ZENITH_SWAP_ABI)
         from eth_abi.abi import encode
-        amount_in_wei = int(amount * (10**18)) # Asumsi WPHRS 18 desimal
-        encoded_data = encode(["address","address","uint256","address","uint256","uint256","uint256",],[from_token_addr,to_token_addr,500,self.address,amount_in_wei,0,0,])
+
+        # --- Ambil decimals token sumber ---
+        token_contract = self.web3.eth.contract(address=from_token_addr, abi=config.STANDARD_ERC20_ABI)
+        decimals = token_contract.functions.decimals().call()
+        amount_in_wei = int(amount * (10 ** decimals))
+
+        self.log(f"Swap Params: from={from_token_addr}, to={to_token_addr}, amount={amount} ({amount_in_wei} wei), decimals={decimals}")
+
+        encoded_data = encode(
+            ["address","address","uint256","address","uint256","uint256","uint256"],
+            [from_token_addr, to_token_addr, 500, self.address, amount_in_wei, 0, 0]
+        )
         multicall_data = [b'\x04\xe4Z\xaf' + encoded_data]
         tx_data = router_contract.functions.multicall(int(time.time()) + 300, multicall_data)
         tx = tx_data.build_transaction({"from":self.address})
