@@ -76,9 +76,26 @@ def display_faroswap_submenu():
 
 # --- FUNGSI PENGATURAN DEFAULT ---
 def get_pharos_settings_default():
-    return {"delay": (10, 30), "wrap_amount": (0.001, 0.01), "zenith_swap_count": (3, 7), "zenith_swap_amount": (0.005, 0.01), "lp_count": (3, 7), "lp_amount_wphrs": (0.001, 0.02), "lp_amount_usdc": (0.1, 0.2), "send_friends_count": (1, 3), "send_friends_amount": (0.001, 0.002)}
+    # --- PERUBAHAN DI FUNGSI INI ---
+    return {
+        "delay": (10, 30),
+        "wrap_amount": (0.01, 0.05),
+        "zenith_swap_count": (3, 7),
+        "lp_count": (3, 7),
+        "send_friends_count": (1, 3),
+        "send_friends_amount": (0.001, 0.002),
+        
+        # Hapus 'zenith_swap_amount' dan ganti dengan yang lebih spesifik
+        "zenith_swap_amount_wphrs": (0.005, 0.01),  # Jumlah untuk swap DARI WPHRS
+        "zenith_swap_amount_usdc": (0.1, 2),      # Jumlah untuk swap DARI USDC
+        "zenith_swap_amount_usdt": (0.1, 3),      # Jumlah untuk swap DARI USDT
+
+        # Pengaturan LP tetap
+        "lp_amount_wphrs": (0.001, 0.02),
+        "lp_amount_usdc": (0.1, 0.2)
+    }
 def get_openfi_settings_default():
-    return {"delay": (15, 30), "deposit_amount": (0.01, 0.05), "supply_amount": (0.01, 0.07), "borrow_amount": (0.01, 0.05), "withdraw_amount": (0.01, 0.05)}
+    return {"delay": (15, 30), "deposit_amount": (0.001, 0.01), "supply_amount": (5, 11), "borrow_amount": (0.01, 0.05), "withdraw_amount": (0.01, 0.05)}
 def get_gotchipus_settings_default():
     return {"delay": (10, 25)}
 def get_brokex_settings_default():
