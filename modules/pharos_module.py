@@ -65,6 +65,27 @@ class PharosModule:
             self.log(f"{Fore.RED}Error saat mengirim transaksi: {e}{Style.RESET_ALL}")
             self.nonce = None # Reset nonce jika ada error
             return None
+            
+    async def get_token_balance(self, contract_address: str):
+        try:
+            checksum_address = self.web3.to_checksum_address(contract_address)
+            if checksum_address == "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE":
+                # Handle native PHRS token
+                balance_wei = self.web3.eth.get_balance(self.address)
+                return self.web3.from_wei(balance_wei, 'ether')
+            else:
+                # Handle ERC20 tokens
+                token_contract = self.web3.eth.contract(address=checksum_address, abi=config.STANDARD_ERC20_ABI)
+                balance_wei = token_contract.functions.balanceOf(self.address).call()
+                decimals = token_contract.functions.decimals().call()
+                return balance_wei / (10 ** decimals)
+        except Exception as e:
+            # Fallback for "PHRS" string if passed
+            if isinstance(contract_address, str) and contract_address.upper() == "PHRS":
+                 balance_wei = self.web3.eth.get_balance(self.address)
+                 return self.web3.from_wei(balance_wei, 'ether')
+            self.log(f"{Fore.RED}Gagal mendapatkan balance untuk {contract_address}: {e}{Style.RESET_ALL}")
+            return 0
 
     def _generate_login_payload(self):
         """Membangun payload SIWE untuk login."""
@@ -108,38 +129,53 @@ class PharosModule:
         except Exception as e:
             self.log(f"{Fore.RED}Error saat login: {e}{Style.RESET_ALL}"); return False
             
-    async def display_user_profile(self):
-        # ... (fungsi ini sudah stabil, tidak perlu diubah lagi)
-        self.log(f"Mencoba mengambil info Poin Pharos...")
-        url = f"https://api.pharos.fi/api/user/point?address={self.address}"
-        try:
-            connector = ProxyConnector.from_url(self.proxy) if self.proxy else None
-            async with ClientSession(connector=connector) as session:
-                async with session.get(url, headers=self.headers, timeout=20) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if data.get("code") == 0 and data.get("data"):
-                            user_data = data["data"]
-                            points = user_data.get("points", "N/A")
-                            rank = user_data.get("rank", "N/A")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT}================ INFO AKUN ================{Style.RESET_ALL}")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT} Poin Total: {points} | Peringkat: {rank}{Style.RESET_ALL}")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT}=========================================={Style.RESET_ALL}")
-                        else:
-                            self.log(f"{Fore.YELLOW}Gagal mendapatkan data: {data.get('msg', 'Format respons tidak dikenal')}{Style.RESET_ALL}")
-                    # Jika endpoint .fi gagal, kembali ke metode lama yang stabil
-                    else:
-                        await self.user_login() # Butuh login untuk endpoint lama
-                        url_fallback = f"{config.PHAROS_API_URL}/user/profile?address={self.address}"
-                        async with session.get(url_fallback, headers=self.headers, timeout=20) as fallback_response:
-                            fallback_data = await fallback_response.json()
-                            points = fallback_data.get("data", {}).get("user_info", {}).get("TotalPoints", "N/A")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT}================ INFO AKUN ================{Style.RESET_ALL}")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT} Poin Total: {points} (Rank tidak tersedia){Style.RESET_ALL}")
-                            self.log(f"{Fore.GREEN+Style.BRIGHT}=========================================={Style.RESET_ALL}")
-        except Exception as e:
-            self.log(f"{Fore.RED}Error saat mengambil profil pengguna: {e}{Style.RESET_ALL}")
+    # Di dalam file: modules/pharos_module.py
 
+    async def display_user_profile(self):
+        """
+        Fungsi final yang HANYA menggunakan endpoint stabil untuk mengambil info Poin.
+        """
+        self.log("Mencoba mengambil info profil akun...")
+        
+        # 1. Pastikan sudah login, karena endpoint ini memerlukannya.
+        if not self.access_token:
+            if not await self.user_login():
+                self.log(f"{Fore.RED}Gagal login, tidak bisa mengambil profil.{Style.RESET_ALL}")
+                return
+
+        # 2. Ambil data profil dari API yang stabil.
+        url = f"{config.PHAROS_API_URL}/user/profile?address={self.address}"
+        headers = {**self.headers, "Authorization": f"Bearer {self.access_token}"}
+        
+        response_data = None
+        for attempt in range(3): # Coba koneksi 3 kali
+            try:
+                connector = ProxyConnector.from_url(self.proxy) if self.proxy else None
+                async with ClientSession(connector=connector) as session:
+                    async with session.get(url, headers=headers, timeout=20) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            if result.get("code") == 0:
+                                response_data = result.get("data")
+                                break # Berhasil
+                        else:
+                            self.log(f"{Fore.YELLOW}Gagal mengambil profil (Attempt {attempt+1}), Status: {response.status}. Coba lagi...{Style.RESET_ALL}")
+                if response_data: break
+                await asyncio.sleep(5)
+            except Exception as e:
+                self.log(f"{Fore.RED}Error saat request profil (Attempt {attempt+1}): {e}. Coba lagi...{Style.RESET_ALL}")
+                await asyncio.sleep(5)
+        
+        # 3. Tampilkan hasil jika berhasil
+        if response_data:
+            user_info = response_data.get('user_info', {})
+            points = user_info.get('TotalPoints', 'N/A')
+            
+            self.log(f"{Fore.GREEN+Style.BRIGHT}================ INFO AKUN ================{Style.RESET_ALL}")
+            self.log(f"{Fore.GREEN+Style.BRIGHT} Poin Total: {points}{Style.RESET_ALL}")
+            self.log(f"{Fore.GREEN+Style.BRIGHT}=========================================={Style.RESET_ALL}")
+        else:
+            self.log(f"{Fore.RED}Tidak berhasil mendapatkan data profil setelah beberapa kali percobaan.{Style.RESET_ALL}")
 
     async def check_in_and_faucet(self):
         if not self.access_token:
