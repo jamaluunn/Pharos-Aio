@@ -345,15 +345,35 @@ class PharosModule:
 
         for i in range(zenith_swap_count):
             self.log(f"--- Zenith Swap ke-{i+1}/{zenith_swap_count} ---")
-            amount = random.uniform(settings['zenith_swap_amount'][0], settings['zenith_swap_amount'][1])
-            await self.perform_zenith_swap(config.PHAROS_WPHRS_CONTRACT_ADDRESS, config.PHAROS_USDC_CONTRACT_ADDRESS, amount)
+            
+            # Memilih pasangan swap secara acak dari config
+            from_token, to_token = random.choice(config.PHAROS_SWAP_PAIRS)
+            
+            # Menentukan jumlah swap berdasarkan token sumber
+            if from_token == config.PHAROS_WPHRS_CONTRACT_ADDRESS:
+                amount = random.uniform(settings['zenith_swap_amount_wphrs'][0], settings['zenith_swap_amount_wphrs'][1])
+            elif from_token == config.PHAROS_USDC_CONTRACT_ADDRESS:
+                amount = random.uniform(settings['zenith_swap_amount_usdc'][0], settings['zenith_swap_amount_usdc'][1])
+            elif from_token == config.PHAROS_USDT_CONTRACT_ADDRESS:
+                amount = random.uniform(settings['zenith_swap_amount_usdt'][0], settings['zenith_swap_amount_usdt'][1])
+            else:
+                self.log(f"{Fore.RED}Token untuk swap tidak dikenali. Skip.{Style.RESET_ALL}")
+                continue
+                
+            await self.perform_zenith_swap(from_token, to_token, amount)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
 
         for i in range(lp_count):
             self.log(f"--- Add/Increase LP ke-{i+1}/{lp_count} ---")
-            amount_wphrs = random.uniform(settings['lp_amount_wphrs'][0], settings['lp_amount_wphrs'][1])
-            amount_usdc = random.uniform(settings['lp_amount_usdc'][0], settings['lp_amount_usdc'][1])
-            await self.add_liquidity(config.PHAROS_WPHRS_CONTRACT_ADDRESS, config.PHAROS_USDC_CONTRACT_ADDRESS, amount_wphrs, amount_usdc)
+            
+            # Memilih pasangan LP secara acak dari config
+            token_a, token_b = random.choice(config.PHAROS_LP_PAIRS)
+            
+            # Menggunakan pengaturan jumlah dari settings
+            amount_a = random.uniform(settings['lp_amount_wphrs'][0], settings['lp_amount_wphrs'][1])
+            amount_b = random.uniform(settings['lp_amount_usdc'][0], settings['lp_amount_usdc'][1])
+
+            await self.add_liquidity(token_a, token_b, amount_a, amount_b)
             await asyncio.sleep(random.uniform(delay_min, delay_max))
         
         self.log(f"{Fore.MAGENTA}--- SEMUA INTERAKSI PHAROS UNTUK {self.address[:10]}... SELESAI ---{Style.RESET_ALL}")
