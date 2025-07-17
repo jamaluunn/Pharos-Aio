@@ -74,6 +74,14 @@ def display_faroswap_submenu():
     print("0. Kembali ke Menu Utama")
     return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 4)
 
+def display_brokex_submenu():
+    print("\n--- Menu Modul Brokex ---")
+    print("1. Jalankan Siklus Penuh")
+    print("2. Tes Add Liquidity Pool")
+    print("3. Tes Withdraw Liquidity Pool")
+    print("0. Kembali ke Menu Utama")
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 3)
+
 # --- FUNGSI PENGATURAN DEFAULT ---
 def get_pharos_settings_default():
     # --- PERUBAHAN DI FUNGSI INI ---
@@ -99,7 +107,13 @@ def get_openfi_settings_default():
 def get_gotchipus_settings_default():
     return {"delay": (10, 25)}
 def get_brokex_settings_default():
-    return {"delay": (10, 30), "trade_count": (3, 5), "trade_amount": (1.0, 4.5)}
+    return {
+        "delay": (10, 30),
+        "trade_count": (3, 5),
+        "trade_amount": (10.0, 14.5),
+        "lp_add_amount": 5.0,         # Jumlah USDT untuk add liquidity
+        "lp_withdraw_amount": 0.01      # Jumlah LP token untuk withdraw
+    }
 def get_faroswap_settings_default():
     return {"delay": (15, 30), "deposit_amount": (0.01, 0.015), "swap_count": (2, 7), "swap_amount": (0.01, 0.1), "lp_count": (2, 7), "lp_amount": (0.01, 0.2)}
 
@@ -201,6 +215,20 @@ async def main():
                         elif sub_choice == 4: amount = get_user_input("Jumlah token per sisi LP (USDC/USDT): ", float); base, quote = random.sample([config.FAROSWAP_USDC_ADDRESS, config.FAROSWAP_USDT_ADDRESS], 2); print(f"Pair LP acak dipilih: {base[-6:]}... / {quote[-6:]}..."); await run_feature_for_all_accounts(FaroswapModule, "add_dvm_liquidity", accounts, proxies, base, quote, amount)
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Faroswap...")
+                elif main_choice == 4:
+                     while True:
+                        sub_choice = display_brokex_submenu()
+                        if sub_choice == 1:
+                            await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
+                        elif sub_choice == 2:
+                            amount = get_user_input("Jumlah USDT untuk Add Liquidity: ", float)
+                            await run_feature_for_all_accounts(BrokexModule, "add_liquidity", accounts, proxies, amount)
+                        elif sub_choice == 3:
+                            lp_amount = get_user_input("Jumlah LP Token untuk Withdraw: ", float)
+                            await run_feature_for_all_accounts(BrokexModule, "withdraw_liquidity", accounts, proxies, lp_amount)
+                        elif sub_choice == 0:
+                            break
+                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Brokex...")
                 elif main_choice in [2,3,4]:
                      print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...");
                      if main_choice == 2: await run_full_cycle_for_all_accounts(OpenFiModule, get_openfi_settings_default, accounts, proxies, "OPENFI")
