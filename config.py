@@ -8,12 +8,12 @@ RPC_URL = "https://testnet.dplabs-internal.com"
 
 # <<< Daftar RPC KHUSUS untuk modul Faroswap >>>
 FAROSWAP_RPC_URLS = [
-    "https://api.zan.top/node/v1/pharos/testnet/API RPC MU",
+    "https://api.zan.top/node/v1/pharos/testnet/RPC MU",
     "https://testnet.dplabs-internal.com"
 ]
 
 RPC_URLS = [
-    "https://api.zan.top/node/v1/pharos/testnet/API RPC MU",
+    "https://api.zan.top/node/v1/pharos/testnet/RPC MU",
     "https://testnet.dplabs-internal.com"
 ]
 
@@ -96,7 +96,58 @@ BROKEX_CLAIM_ABI = json.loads('''[
 ]''')
 # ABI Baru untuk trading (dengan fungsi createPendingOrder)
 BROKEX_ORDER_ABI = json.loads('''[
-    {"name":"createPendingOrder","type":"function","stateMutability":"nonpayable","inputs":[{"internalType":"uint256","name":"assetIndex","type":"uint256"},{"internalType":"bool","name":"isLong","type":"bool"},{"internalType":"uint256","name":"usdSize","type":"uint256"},{"internalType":"uint256","name":"leverage","type":"uint256"},{"internalType":"uint256","name":"slPrice","type":"uint256"},{"internalType":"uint256","name":"tpPrice","type":"uint256"}],"outputs":[]}
+    {
+        "name":"createPendingOrder",
+        "type":"function",
+        "stateMutability":"nonpayable",
+        "inputs":[
+            {"internalType":"uint256","name":"assetIndex","type":"uint256"},
+            {"internalType":"bool","name":"isLong","type":"bool"},
+            {"internalType":"uint256","name":"usdSize","type":"uint256"},
+            {"internalType":"uint256","name":"leverage","type":"uint256"},
+            {"internalType":"uint256","name":"slPrice","type":"uint256"},
+            {"internalType":"uint256","name":"tpPrice","type":"uint256"}
+        ],
+        "outputs":[]
+    },
+    {
+        "name": "openPosition",
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"internalType": "uint256", "name": "pairId", "type": "uint256"},
+            {"internalType": "bytes", "name": "proof", "type": "bytes"},
+            {"internalType": "bool", "name": "isLong", "type": "bool"},
+            {"internalType": "uint256", "name": "leverage", "type": "uint256"},
+            {"internalType": "uint256", "name": "usdSize", "type": "uint256"},
+            {"internalType": "uint256", "name": "slPrice", "type": "uint256"},
+            {"internalType": "uint256", "name": "tpPrice", "type": "uint256"}
+        ],
+        "outputs": []
+    }
+]''')
+
+BROKEX_POOL_ROUTER_ADDRESS = "0x9A88d07850723267DB386C681646217Af7e220d7"  # Ganti sesuai pool router Brokex kamu
+
+BROKEX_POOL_ABI = json.loads('''[
+    {
+        "name": "depositLiquidity",
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            { "internalType": "uint256", "name": "usdtAmount", "type": "uint256" }
+        ],
+        "outputs": []
+    },
+    {
+        "name": "withdrawLiquidity",
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            { "internalType": "uint256", "name": "lpAmount", "type":"uint256" }
+        ],
+        "outputs": []
+    }
 ]''')
 
 # --- FAROSWAP (DODO ROUTER) CONFIG ---
