@@ -82,6 +82,15 @@ def display_brokex_submenu():
     print("0. Kembali ke Menu Utama")
     return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 3)
 
+def display_gotchipus_submenu():
+    print("\n--- Menu Modul Gotchipus ---")
+    print("1. Jalankan Siklus Penuh (Check-In, Mint, Claim)")
+    print("2. Tes 'Daily Check-In'")
+    print("3. Tes 'Mint NFT'")
+    print("4. Tes 'Claim Wearable'")
+    print("0. Kembali ke Menu Utama")
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 4)
+
 # --- FUNGSI PENGATURAN DEFAULT ---
 def get_pharos_settings_default():
     # --- PERUBAHAN DI FUNGSI INI ---
@@ -134,7 +143,7 @@ async def run_feature_for_all_accounts(module_class, feature_func_name, accounts
 async def run_full_cycle_for_all_accounts(module_class, settings_func, accounts, proxies, module_name):
     print(Fore.GREEN + Style.BRIGHT + f"\n[ MEMULAI SIKLUS PENUH: {module_name} ]")
     settings = settings_func()
-    runner_func_name = {"PHAROS": "run_full_interaction_task", "OPENFI": "run_full_lending_cycle", "GOTCHIPUS": "run_minting_cycle", "BROKEX": "run_trading_cycle", "FAROSWAP": "run_full_cycle"}[module_name]
+    runner_func_name = {"PHAROS": "run_full_interaction_task", "OPENFI": "run_full_lending_cycle", "GOTCHIPUS": "run_full_cycle", "BROKEX": "run_trading_cycle", "FAROSWAP": "run_full_cycle"}[module_name]
     for i, private_key in enumerate(accounts):
         proxy = proxies[i % len(proxies)] if proxies else None
         print(Fore.CYAN + f"\n--- Akun {i+1}/{len(accounts)}: {Account.from_key(private_key).address[:10]}... ---")
@@ -197,7 +206,7 @@ async def main():
             while True:
                 display_main_menu()
                 main_choice = get_user_input("Pilih Modul: ", int, 0, 8)
-                if main_choice == 1:
+                if main_choice == 1: # Pharos
                     while True:
                         sub_choice = display_pharos_submenu()
                         if sub_choice == 1: await run_full_cycle_for_all_accounts(PharosModule, get_pharos_settings_default, accounts, proxies, "PHAROS")
@@ -206,8 +215,32 @@ async def main():
                         elif sub_choice == 4: amount_wphrs = get_user_input("Jumlah WPHRS untuk LP: ", float); amount_usdc = get_user_input("Jumlah USDC untuk LP: ", float); await run_feature_for_all_accounts(PharosModule, "add_liquidity", accounts, proxies, config.PHAROS_WPHRS_CONTRACT_ADDRESS, config.PHAROS_USDC_CONTRACT_ADDRESS, amount_wphrs, amount_usdc)
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Pharos...")
-                elif main_choice == 5:
-                     while True:
+                
+                elif main_choice == 2: # OpenFi
+                    print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...");
+                    await run_full_cycle_for_all_accounts(OpenFiModule, get_openfi_settings_default, accounts, proxies, "OPENFI")
+
+                elif main_choice == 3: # Gotchipus
+                    while True:
+                        sub_choice = display_gotchipus_submenu()
+                        if sub_choice == 1: await run_full_cycle_for_all_accounts(GotchipusModule, get_gotchipus_settings_default, accounts, proxies, "GOTCHIPUS")
+                        elif sub_choice == 2: await run_feature_for_all_accounts(GotchipusModule, "perform_daily_checkin", accounts, proxies)
+                        elif sub_choice == 3: await run_feature_for_all_accounts(GotchipusModule, "perform_mint_nft", accounts, proxies)
+                        elif sub_choice == 4: await run_feature_for_all_accounts(GotchipusModule, "perform_claim_wearable", accounts, proxies)
+                        elif sub_choice == 0: break
+                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Gotchipus...")
+
+                elif main_choice == 4: # Brokex
+                    while True:
+                        sub_choice = display_brokex_submenu()
+                        if sub_choice == 1: await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
+                        elif sub_choice == 2: amount = get_user_input("Jumlah USDT untuk Add Liquidity: ", float); await run_feature_for_all_accounts(BrokexModule, "add_liquidity", accounts, proxies, amount)
+                        elif sub_choice == 3: lp_amount = get_user_input("Jumlah LP Token untuk Withdraw: ", float); await run_feature_for_all_accounts(BrokexModule, "withdraw_liquidity", accounts, proxies, lp_amount)
+                        elif sub_choice == 0: break
+                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Brokex...")
+
+                elif main_choice == 5: # Faroswap
+                    while True:
                         sub_choice = display_faroswap_submenu()
                         if sub_choice == 1: await run_full_cycle_for_all_accounts(FaroswapModule, get_faroswap_settings_default, accounts, proxies, "FAROSWAP")
                         elif sub_choice == 2: amount = get_user_input("Jumlah PHRS untuk deposit (wrap): ", float); await run_feature_for_all_accounts(FaroswapModule, "deposit_phrs", accounts, proxies, amount)
@@ -215,30 +248,21 @@ async def main():
                         elif sub_choice == 4: amount = get_user_input("Jumlah token per sisi LP (USDC/USDT): ", float); base, quote = random.sample([config.FAROSWAP_USDC_ADDRESS, config.FAROSWAP_USDT_ADDRESS], 2); print(f"Pair LP acak dipilih: {base[-6:]}... / {quote[-6:]}..."); await run_feature_for_all_accounts(FaroswapModule, "add_dvm_liquidity", accounts, proxies, base, quote, amount)
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Faroswap...")
-                elif main_choice == 4:
-                     while True:
-                        sub_choice = display_brokex_submenu()
-                        if sub_choice == 1:
-                            await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
-                        elif sub_choice == 2:
-                            amount = get_user_input("Jumlah USDT untuk Add Liquidity: ", float)
-                            await run_feature_for_all_accounts(BrokexModule, "add_liquidity", accounts, proxies, amount)
-                        elif sub_choice == 3:
-                            lp_amount = get_user_input("Jumlah LP Token untuk Withdraw: ", float)
-                            await run_feature_for_all_accounts(BrokexModule, "withdraw_liquidity", accounts, proxies, lp_amount)
-                        elif sub_choice == 0:
-                            break
-                        print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Brokex...")
-                elif main_choice in [2,3,4]:
-                     print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...");
-                     if main_choice == 2: await run_full_cycle_for_all_accounts(OpenFiModule, get_openfi_settings_default, accounts, proxies, "OPENFI")
-                     elif main_choice == 3: await run_full_cycle_for_all_accounts(GotchipusModule, get_gotchipus_settings_default, accounts, proxies, "GOTCHIPUS")
-                     elif main_choice == 4: await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
-                elif main_choice == 6: await run_all_modules_auto(accounts, proxies); print(Fore.GREEN + Style.BRIGHT + "\nSemua siklus selesai.")
-                elif main_choice == 7: await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies); print(Fore.GREEN + "\nTugas Mint Badge selesai.")
-                elif main_choice == 8: await run_feature_for_all_accounts(PharosModule, "display_user_profile", accounts, proxies); print(Fore.GREEN + "\nPengecekan Info Akun selesai.")
-                elif main_choice == 0: print(Fore.YELLOW + "Terima kasih!"); break
-                else: print(Fore.RED + "Pilihan tidak valid.")
+                
+                elif main_choice == 6: 
+                    await run_all_modules_auto(accounts, proxies)
+                    print(Fore.GREEN + Style.BRIGHT + "\nSemua siklus selesai.")
+                elif main_choice == 7: 
+                    await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies)
+                    print(Fore.GREEN + "\nTugas Mint Badge selesai.")
+                elif main_choice == 8: 
+                    await run_feature_for_all_accounts(PharosModule, "display_user_profile", accounts, proxies)
+                    print(Fore.GREEN + "\nPengecekan Info Akun selesai.")
+                elif main_choice == 0: 
+                    print(Fore.YELLOW + "Terima kasih!")
+                    break
+                else: 
+                    print(Fore.RED + "Pilihan tidak valid.")
     except FileNotFoundError as e: print(Fore.RED + f"File tidak ditemukan: {e}")
     except Exception as e: print(Fore.RED + f"Terjadi kesalahan fatal: {e}")
 
