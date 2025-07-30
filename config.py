@@ -8,12 +8,12 @@ RPC_URL = "https://testnet.dplabs-internal.com"
 
 # <<< Daftar RPC KHUSUS untuk modul Faroswap >>>
 FAROSWAP_RPC_URLS = [
-    "https://api.zan.top/node/v1/pharos/testnet/RPC MU",
+    "https://testnet.dplabs-internal.com",
     "https://testnet.dplabs-internal.com"
 ]
 
 RPC_URLS = [
-    "https://api.zan.top/node/v1/pharos/testnet/RPC MU",
+    "https://testnet.dplabs-internal.com",
     "https://testnet.dplabs-internal.com"
 ]
 
@@ -150,6 +150,67 @@ BROKEX_POOL_ABI = json.loads('''[
     }
 ]''')
 
+BROKEX_ORDER_ABI_UPDATED = [
+    {
+        "name": "openPosition", "type": "function", "stateMutability": "nonpayable",
+        "inputs": [
+            { "internalType": "uint256", "name": "idx", "type": "uint256" },
+            { "internalType": "bytes",   "name": "proof", "type": "bytes" },
+            { "internalType": "bool",    "name": "isLong", "type": "bool" },
+            { "internalType": "uint256", "name": "lev", "type": "uint256" },
+            { "internalType": "uint256", "name": "size", "type": "uint256" },
+            { "internalType": "uint256", "name": "sl", "type": "uint256" },
+            { "internalType": "uint256", "name": "tp", "type": "uint256" }
+        ],
+        "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }]
+    },
+    {
+        "name": "createPendingOrder", "type": "function", "stateMutability": "nonpayable",
+        "inputs": [
+            {"internalType": "uint256", "name": "pairId", "type": "uint256"},
+            {"internalType": "bool", "name": "isLong", "type": "bool"},
+            {"internalType": "uint256", "name": "collateral", "type": "uint256"},
+            {"internalType": "uint256", "name": "leverage", "type": "uint256"},
+            {"internalType": "uint256", "name": "stopLoss", "type": "uint256"},
+            {"internalType": "uint256", "name": "takeProfit", "type": "uint256"}
+        ],
+        "outputs": []
+    },
+    {
+        "name": "getUserOpenIds", "type": "function", "stateMutability": "view",
+        "inputs": [{ "internalType": "address", "name": "user", "type": "address" }],
+        "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }]
+    },
+    {
+        "name": "getOpenById", "type": "function", "stateMutability": "view",
+        "inputs": [{ "internalType": "uint256", "name": "id", "type": "uint256" }],
+        "outputs": [{
+            "internalType": "struct IBrokexStorage.Open", "name": "", "type": "tuple",
+            "components": [
+                { "internalType": "address", "name": "trader", "type": "address" },
+                { "internalType": "uint256", "name": "id", "type": "uint256" },
+                { "internalType": "uint256", "name": "assetIndex", "type": "uint256" },
+                { "internalType": "bool", "name": "isLong", "type": "bool" },
+                { "internalType": "uint256", "name": "leverage", "type": "uint256" },
+                { "internalType": "uint256", "name": "openPrice", "type": "uint256" },
+                { "internalType": "uint256", "name": "sizeUsd", "type": "uint256" },
+                { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+                { "internalType": "uint256", "name": "stopLossPrice", "type": "uint256" },
+                { "internalType": "uint256", "name": "takeProfitPrice", "type": "uint256" },
+                { "internalType": "uint256", "name": "liquidationPrice", "type": "uint256" }
+            ]
+        }]
+    },
+    {
+        "name": "closePosition", "type": "function", "stateMutability": "nonpayable",
+        "inputs": [
+            { "internalType": "uint256", "name": "openId", "type": "uint256" },
+            { "internalType": "bytes",   "name": "proof", "type": "bytes" }
+        ],
+        "outputs": []
+    }
+]
+
 # --- FAROSWAP (DODO ROUTER) CONFIG ---
 FAROSWAP_PHRS_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
 FAROSWAP_WPHRS_ADDRESS = "0x3019B247381c850ab53Dc0EE53bCe7A07Ea9155f"
@@ -167,3 +228,100 @@ FAROSWAP_DVM_POOL_ABI = json.loads('''[{"type":"function","name":"addDVMLiquidit
 # --- FAROSWAP (METODE BARU) CONFIG ---
 FAROSWAP_MIXSWAP_ROUTER_ADDRESS = "0x3541423f25A1Ca5C98fdBCf478405d3f0aaD1164"
 FAROSWAP_POOL_ROUTER_ADDRESS = "0x73cafc894dbfc181398264934f7be4e482fc9d40"
+
+# Konfigurasi untuk Modul Primuslabs
+PRIMUSLABS_SEND_ROUTER_ADDRESS = "0xD17512B7EC12880Bd94Eca9d774089fF89805F02"
+PRIMUSLABS_CONTRACT_ABI = [
+    {
+        "type": "function",
+        "name": "tip",
+        "stateMutability": "payable",
+        "inputs": [
+            {
+                "name": "token",
+                "type": "tuple",
+                "internalType": "struct TipToken",
+                "components": [
+                    { "name": "tokenType", "type": "uint32", "internalType": "uint32" }, 
+                    { "name": "tokenAddress", "type": "address", "internalType": "address" }
+                ]
+            }, 
+            {
+                "name": "recipient",
+                "type": "tuple",
+                "internalType": "struct TipRecipientInfo",
+                "components": [
+                    { "name": "idSource", "type": "string", "internalType": "string" }, 
+                    { "name": "id", "type": "string", "internalType": "string" }, 
+                    { "name": "amount", "type": "uint256", "internalType": "uint256" }, 
+                    { "name": "nftIds", "type": "uint256[]", "internalType": "uint256[]" }
+                ]
+            }
+        ],
+        "outputs": []
+    }
+]
+
+# Konfigurasi untuk Modul Aquaflux
+AQUAFLUX_BASE_API = "https://api.aquaflux.pro/api/v1"
+AQUAFLUX_NFT_ADDRESS = "0xCc8cF44E196CaB28DBA2d514dc7353af0eFb370E"
+AQUAFLUX_HEADERS = {
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Origin": "https://playground.aquaflux.pro",
+    "Referer": "https://playground.aquaflux.pro/",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+}
+AQUAFLUX_CONTRACT_ABI = [
+    {"type": "function", "name": "claimTokens", "stateMutability": "nonpayable", "inputs": [], "outputs": []},
+    {"type": "function", "name": "combineCS", "stateMutability": "nonpayable", "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}], "outputs": []},
+    {"type": "function", "name": "combinePC", "stateMutability": "nonpayable", "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}], "outputs": []},
+    {"type": "function", "name": "combinePS", "stateMutability": "nonpayable", "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}], "outputs": []},
+    {"type": "function", "name": "hasClaimedStandardNFT", "stateMutability": "view", "inputs": [{"internalType": "address", "name": "owner", "type": "address"}], "outputs": [{"internalType": "bool", "name": "", "type": "bool"}]},
+    {"type": "function", "name": "hasClaimedPremiumNFT", "stateMutability": "view", "inputs": [{"internalType": "address", "name": "owner", "type": "address"}], "outputs": [{"internalType": "bool", "name": "", "type": "bool"}]},
+    {"type": "function", "name": "mint", "stateMutability": "nonpayable", "inputs": [{"internalType": "enum AquafluxNFT.NFTType", "name": "nftType", "type": "uint8"}, {"internalType": "uint256", "name": "expiresAt", "type": "uint256"}, {"internalType": "bytes", "name": "signature", "type": "bytes"}], "outputs": []}
+]
+
+# Konfigurasi untuk Modul Autostaking
+AUTOSTAKING_PUBLIC_KEY_PEM = b"""
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDWPv2qP8+xLABhn3F/U/hp76HP
+e8dD7kvPUh70TC14kfvwlLpCTHhYf2/6qulU1aLWpzCz3PJr69qonyqocx8QlThq
+5Hik6H/5fmzHsjFvoPeGN5QRwYsVUH07MbP7MNbJH5M2zD5Z1WEp9AHJklITbS1z
+h23cf2WfZ0vwDYzZ8QIDAQAB
+-----END PUBLIC KEY-----
+"""
+
+AUTOSTAKING_BASE_API = "https://api.autostaking.pro"
+AUTOSTAKING_HEADERS = {
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Origin": "https://autostaking.pro",
+    "Referer": "https://autostaking.pro/",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+}
+AUTOSTAKING_PROMPT = (
+    "1. Mandatory Requirement: The product's TVL must be higher than one million USD.\n"
+    "2. Balance Preference: Prioritize products that have a good balance of high current APY and high TVL.\n"
+    "3. Portfolio Allocation: Select the 3 products with the best combined ranking in terms of current APY and TVL among those with TVL > 1,000,000 USD. "
+    "To determine the combined ranking, rank all eligible products by current APY (highest to lowest) and by TVL (highest to lowest), "
+    "then sum the two ranks for each product. Choose the 3 products with the smallest sum of ranks. Allocate the investment equally among these 3 products, "
+    "with each receiving approximately 33.3% of the investment."
+)
+
+# Alamat Kontrak Autostaking
+AUTOSTAKING_USDC_ADDRESS = "0x72df0bcd7276f2dFbAc900D1CE63c272C4BCcCED"
+AUTOSTAKING_USDT_ADDRESS = "0xD4071393f8716661958F766DF660033b3d35fD29"
+AUTOSTAKING_MUSD_ADDRESS = "0x7F5e05460F927Ee351005534423917976F92495e"
+AUTOSTAKING_MVMUSD_ADDRESS = "0xF1CF5D79bE4682D50f7A60A047eACa9bD351fF8e"
+AUTOSTAKING_ROUTER_ADDRESS = "0x11cD3700B310339003641Fdce57c1f9BD21aE015"
+
+# ABI Autostaking
+AUTOSTAKING_FAUCET_ABI = [
+    {"type":"function", "name":"getNextFaucetClaimTime", "stateMutability":"view", "inputs":[{"name":"user", "type":"address"}], "outputs":[{"name":"", "type":"uint256"}]},
+    {"type":"function", "name":"claimFaucet", "stateMutability":"nonpayable", "inputs":[], "outputs":[{"name":"","type":"uint256"}]}
+]

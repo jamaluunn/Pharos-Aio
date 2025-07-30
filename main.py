@@ -11,6 +11,9 @@ from modules.openfi_module import OpenFiModule
 from modules.gotchipus_module import GotchipusModule
 from modules.brokex_module import BrokexModule
 from modules.faroswap_module import FaroswapModule
+from modules.primuslabs_module import PrimuslabsModule
+from modules.aquaflux_module import AquafluxModule
+from modules.autostaking_module import AutostakingModule
 import config
 
 init(autoreset=True)
@@ -49,10 +52,13 @@ def display_main_menu():
     print("3. Modul Gotchipus (NFT)")
     print("4. Modul Brokex (Trading)")
     print("5. Modul Faroswap (DODO Router)")
+    print("6. Modul Primuslabs (Send Tip)")
+    print("7. Modul Aquaflux (NFT Mint)")
+    print("8. Modul Autostaking")
     print(Fore.CYAN + "----------------------------------------------")
-    print(Fore.YELLOW + "6. Jalankan SEMUA Modul Otomatis")
-    print(Fore.WHITE + "7. Mint Testnet Badge (Satu Kali)")
-    print(Fore.MAGENTA + "8. Cek Info Akun Pharos (Poin & Rank)")
+    print(Fore.YELLOW + "9. Jalankan SEMUA Modul Otomatis")
+    print(Fore.WHITE + "10. Mint Testnet Badge (Satu Kali)")
+    print(Fore.MAGENTA + "11. Cek Info Akun Pharos (Poin & Rank)")
     print(Fore.RED + "0. Keluar")
     print(Style.BRIGHT + "==============================================")
 
@@ -76,11 +82,12 @@ def display_faroswap_submenu():
 
 def display_brokex_submenu():
     print("\n--- Menu Modul Brokex ---")
-    print("1. Jalankan Siklus Penuh")
+    print("1. Jalankan Siklus Penuh (Open, Close, LP)")
     print("2. Tes Add Liquidity Pool")
     print("3. Tes Withdraw Liquidity Pool")
+    print("4. Tes Close Random Position") # BARU
     print("0. Kembali ke Menu Utama")
-    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 3)
+    return get_user_input("Pilih fitur yang ingin diuji: ", int, 0, 4)
 
 def display_gotchipus_submenu():
     print("\n--- Menu Modul Gotchipus ---")
@@ -118,13 +125,35 @@ def get_gotchipus_settings_default():
 def get_brokex_settings_default():
     return {
         "delay": (10, 30),
-        "trade_count": (3, 5),
+        "trade_count": (3, 5),          # Berapa kali BUKA posisi
         "trade_amount": (10.0, 14.5),
-        "lp_add_amount": 5.0,         # Jumlah USDT untuk add liquidity
-        "lp_withdraw_amount": 0.01      # Jumlah LP token untuk withdraw
+        "close_trade_count": (2, 3),    # BARU: Berapa kali TUTUP posisi (acak)
+        "lp_add_amount": 5.0,
+        "lp_withdraw_amount": 0.01
     }
 def get_faroswap_settings_default():
     return {"delay": (15, 30), "deposit_amount": (0.01, 0.015), "swap_count": (2, 7), "swap_amount": (0.01, 0.1), "lp_count": (2, 7), "lp_amount": (0.01, 0.2)}
+
+def get_primuslabs_settings_default():
+    return {
+        "delay": (10, 20),
+        "tip_count": (2, 4),           # Berapa kali kirim tip per akun
+        "tip_amount": (0.0001, 0.0005)  # Jumlah PHRS per tip
+    }
+
+def get_aquaflux_settings_default():
+    return {
+        "delay": (15, 30) # Jeda antar langkah (claim, combine, mint)
+    }
+
+def get_autostaking_settings_default():
+    return {
+        "delay": (20, 40),
+        "staking_count": (1, 2),
+        "usdc_amount": (10.0, 20.0), # Jumlah untuk acuan payload & approval
+        "usdt_amount": (10.0, 20.0),
+        "musd_amount": (10.0, 20.0)
+    }
 
 # --- FUNGSI RUNNER ---
 async def run_feature_for_all_accounts(module_class, feature_func_name, accounts, proxies, *args):
@@ -143,7 +172,7 @@ async def run_feature_for_all_accounts(module_class, feature_func_name, accounts
 async def run_full_cycle_for_all_accounts(module_class, settings_func, accounts, proxies, module_name):
     print(Fore.GREEN + Style.BRIGHT + f"\n[ MEMULAI SIKLUS PENUH: {module_name} ]")
     settings = settings_func()
-    runner_func_name = {"PHAROS": "run_full_interaction_task", "OPENFI": "run_full_lending_cycle", "GOTCHIPUS": "run_full_cycle", "BROKEX": "run_trading_cycle", "FAROSWAP": "run_full_cycle"}[module_name]
+    runner_func_name = {"PHAROS": "run_full_interaction_task", "OPENFI": "run_full_lending_cycle", "GOTCHIPUS": "run_full_cycle", "BROKEX": "run_trading_cycle", "FAROSWAP": "run_full_cycle", "PRIMUSLABS": "run_tipping_cycle", "AQUAFLUX": "run_nft_cycle", "AUTOSTAKING": "run_staking_cycle"}[module_name]
     for i, private_key in enumerate(accounts):
         proxy = proxies[i % len(proxies)] if proxies else None
         print(Fore.CYAN + f"\n--- Akun {i+1}/{len(accounts)}: {Account.from_key(private_key).address[:10]}... ---")
@@ -157,7 +186,7 @@ async def run_full_cycle_for_all_accounts(module_class, settings_func, accounts,
 
 async def run_all_modules_auto(accounts, proxies):
     print(Fore.YELLOW + Style.BRIGHT + "\n[ MODE: JALANKAN SEMUA MODUL OTOMATIS ]")
-    modules_to_run = [(PharosModule, get_pharos_settings_default, "PHAROS"), (OpenFiModule, get_openfi_settings_default, "OPENFI"), (GotchipusModule, get_gotchipus_settings_default, "GOTCHIPUS"), (BrokexModule, get_brokex_settings_default, "BROKEX"), (FaroswapModule, get_faroswap_settings_default, "FAROSWAP")]
+    modules_to_run = [(PharosModule, get_pharos_settings_default, "PHAROS"), (OpenFiModule, get_openfi_settings_default, "OPENFI"), (GotchipusModule, get_gotchipus_settings_default, "GOTCHIPUS"), (BrokexModule, get_brokex_settings_default, "BROKEX"), (FaroswapModule, get_faroswap_settings_default, "FAROSWAP"), (PrimuslabsModule, get_primuslabs_settings_default, "PRIMUSLABS"), (AquafluxModule, get_aquaflux_settings_default, "AQUAFLUX"), (AutostakingModule, get_autostaking_settings_default, "AUTOSTAKING")]
     random.shuffle(modules_to_run)
     for i, (module_class, settings_func, module_name) in enumerate(modules_to_run):
         await run_full_cycle_for_all_accounts(module_class, settings_func, accounts, proxies, module_name)
@@ -236,6 +265,8 @@ async def main():
                         if sub_choice == 1: await run_full_cycle_for_all_accounts(BrokexModule, get_brokex_settings_default, accounts, proxies, "BROKEX")
                         elif sub_choice == 2: amount = get_user_input("Jumlah USDT untuk Add Liquidity: ", float); await run_feature_for_all_accounts(BrokexModule, "add_liquidity", accounts, proxies, amount)
                         elif sub_choice == 3: lp_amount = get_user_input("Jumlah LP Token untuk Withdraw: ", float); await run_feature_for_all_accounts(BrokexModule, "withdraw_liquidity", accounts, proxies, lp_amount)
+                        # BARU: Tambahkan handler untuk pilihan ke-4
+                        elif sub_choice == 4: await run_feature_for_all_accounts(BrokexModule, "close_random_position", accounts, proxies)
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Brokex...")
 
@@ -249,13 +280,25 @@ async def main():
                         elif sub_choice == 0: break
                         print(Fore.GREEN + "\nFitur selesai. Kembali ke sub-menu Faroswap...")
                 
-                elif main_choice == 6: 
+                elif main_choice == 6: # Primuslabs
+                    print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...")
+                    await run_full_cycle_for_all_accounts(PrimuslabsModule, get_primuslabs_settings_default, accounts, proxies, "PRIMUSLABS")
+
+                elif main_choice == 7: # Aquaflux
+                    print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...")
+                    await run_full_cycle_for_all_accounts(AquafluxModule, get_aquaflux_settings_default, accounts, proxies, "AQUAFLUX")
+                
+                elif main_choice == 8: # Autostaking
+                    print(Fore.YELLOW + "Sub-menu belum tersedia. Menjalankan siklus penuh...")
+                    await run_full_cycle_for_all_accounts(AutostakingModule, get_autostaking_settings_default, accounts, proxies, "AUTOSTAKING")
+
+                elif main_choice == 9: 
                     await run_all_modules_auto(accounts, proxies)
                     print(Fore.GREEN + Style.BRIGHT + "\nSemua siklus selesai.")
-                elif main_choice == 7: 
+                elif main_choice == 10: 
                     await run_feature_for_all_accounts(PharosModule, "run_mint_badge_task", accounts, proxies)
                     print(Fore.GREEN + "\nTugas Mint Badge selesai.")
-                elif main_choice == 8: 
+                elif main_choice == 11: 
                     await run_feature_for_all_accounts(PharosModule, "display_user_profile", accounts, proxies)
                     print(Fore.GREEN + "\nPengecekan Info Akun selesai.")
                 elif main_choice == 0: 
